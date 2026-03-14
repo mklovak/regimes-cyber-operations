@@ -1,0 +1,10 @@
+# R specific
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+.RDataTmp
+*.Rproj
+
+# OS specific
+.DS_Store
