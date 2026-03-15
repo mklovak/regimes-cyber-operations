@@ -5,6 +5,7 @@
 .Ruserdata
 .RDataTmp
 *.Rproj
+.lintr
 
 # OS specific
 .DS_Store
