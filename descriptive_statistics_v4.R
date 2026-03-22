@@ -590,10 +590,12 @@ df_2016 <- df_2016 %>% mutate(attacker_ln_cinc = log(attacker_cinc + 0.0001))
 # capita. NK's CINC ~0.013 for 2007-2016 places it at the 90th percentile of all countries
 # (above median of 0.001), while its GDP per capita is ~$1,232 (2015 USD) —
 # roughly 45x less than the US (~$56,000) and well below the global median
-# (~$5,500). Top 10% in national material capability, bottom tier in economic
+# (~$4,736). Top 10% in national material capability, bottom tier in economic
 # development. So high CINC does not imply defensive posture — it may reflect
 # an autocratic investment strategy. CINC captures capacity regardless of
 # whether it is used for aggression or defence.
+
+# > exp(median(df_gdp_all$ln_gdp_pc)) # 4736.327
 
 cat("\n============================================================\n")
 cat("  Capability Diagnostic (df_2016)\n")
