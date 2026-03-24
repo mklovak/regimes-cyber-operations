@@ -525,12 +525,9 @@ cat("W4 countries missing from CINC data:", length(missing_cinc), "\n") # 1
 if (length(missing_cinc) > 0) cat("  ", paste(missing_cinc, collapse = ", "), "\n") # Zanzibar
 # Zanzibar (no CINC/GDP data, zero incidents) is dropped previously at complete-cases filter.
 
-# Build 2007-2016 dataset with CINC instead of GDP
+# Build 2007-2016 dataset with CINC and GDP
 df_2016_base <- df_model %>%
     filter(Year >= 2007 & Year <= 2016) %>%
-    dplyr::select(
-        -attacker_gdp_pc, -attacker_ln_gdp_pc, -victim_gdp_pc, -victim_ln_gdp_pc
-    ) %>%
     left_join(df_cinc, by = c("attacker" = "country", "Year" = "Year")) %>%
     rename(attacker_cinc = cinc) %>%
     left_join(df_cinc, by = c("victim" = "country", "Year" = "Year")) %>%
@@ -539,7 +536,8 @@ df_2016_base <- df_model %>%
 # Filter to complete cases
 complete_2016 <- complete.cases(
     df_2016_base$attacker_w4, df_2016_base$victim_w4,
-    df_2016_base$attacker_cinc, df_2016_base$victim_cinc
+    df_2016_base$attacker_cinc, df_2016_base$victim_cinc,
+    df_2016_base$attacker_ln_gdp_pc, df_2016_base$victim_ln_gdp_pc
 )
 
 df_dropped_2016 <- df_2016_base[!complete_2016, ]
