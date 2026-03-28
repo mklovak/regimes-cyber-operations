@@ -2,6 +2,11 @@
 
 Master's thesis analyzing the relationship between political regimes (measured by the Winning Coalition Index, W4) and state-level cyber aggression, using selectorate theory as the theoretical framework.
 
+## Data Pipeline (run in the following order)
+data_preparation.R -> descriptive_statistics.R -> models.R -> robustness.R
+
+
+
 ## Project Structure
 
 ```text
