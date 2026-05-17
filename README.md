@@ -8,15 +8,17 @@ data_preparation_cfr.R   →  builds df_attacker_2020.csv, df_attacker_2016.csv 
 descriptive_statistics.R →  diagnostics, correlations, Poisson vs NB likelihood-ratio test
 models.R                 →  primary models M1–M7; diagnostics D1–D3
 robustness.R             →  robustness checks R1–R6 (MID-any, top-3 exclusion,
-                            CFR alternative dataset)
+                            CFR alternative dataset); diagnostics D4–D5
 ```
 
-> **Model families**: `M1–M7` are the primary models (DCID dyadic). `D1–D3` are
-> diagnostics (not robustness checks): D1–D2 probe the H2 extensive margin,
-> D3 probes the M7 stage-placement choice. `R1–R6` are the robustness checks —
-> external challenges to the finding (MID-any, top-3 exclusion, CFR dataset).
-> The Poisson vs NB likelihood-ratio test lives in `descriptive_statistics.R`.
-> The CFR analysis is integrated into `robustness.R` as R3–R6.
+> **Model families**: `M1–M7` are the primary models (DCID dyadic). `D1–D5` are
+> diagnostics (not robustness checks): D1–D2 probe the H2 extensive margin and
+> D3 the M7 stage-placement choice (in `models.R`); D4–D5 are supplementary
+> top-3-exclusion diagnostics (in `robustness.R`). `R1–R6` are the robustness
+> checks — external challenges to the finding (MID-any, top-3 exclusion, CFR
+> dataset). The Poisson vs NB likelihood-ratio test lives in
+> `descriptive_statistics.R`. The CFR analysis is integrated into `robustness.R`
+> as R3–R6.
 
 ## Project Structure
 
@@ -49,5 +51,5 @@ robustness.R             →  robustness checks R1–R6 (MID-any, top-3 exclusio
 ├── data_preparation_cfr.R                              # CFR pipeline: raw sources → df_attacker_*.csv
 ├── descriptive_statistics.R                            # Descriptive statistics, diagnostics, correlations, Poisson/NB LR test
 ├── models.R                                            # Primary models M1–M7 + diagnostics D1–D3 (DCID)
-└── robustness.R                                        # Robustness checks R1–R6 (MID-any, top-3 exclusion, CFR alternative dataset)
+└── robustness.R                                        # Robustness checks R1–R6 (MID-any, top-3 exclusion, CFR) + diagnostics D4–D5
 ```

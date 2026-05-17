@@ -4,7 +4,7 @@
 #
 # This script is STANDALONE: it loads the panels itself and fits R1-R6
 # independently of models.R. Run order: data_preparation.R ->
-# data_preparation_cfr.R -> descriptive statistics.R -> models.R -> robustness.R
+# data_preparation_cfr.R -> descriptive_statistics.R -> models.R -> robustness.R
 #
 # A robustness check confronts the finding with something EXTERNAL — different
 # controls, a different sample, or a different dataset. The six checks fall
@@ -29,15 +29,16 @@
 #         with the same controls, it is not an artifact of DCID coding choices.
 #         CFR is monadic (sponsor known, victim not), so it tests H1 only.
 #
-# NOT here:
-#   - Poisson vs NB LR test (estimator justification) — descriptive statistics.R
-#   - D1, D2 H2 extensive-margin diagnostics                — models.R Section 5
-#   - D3 M7 specification diagnostic (W4 in both ZINB stages) — models.R Section 5
-#   D3 is a diagnostic, not a robustness check: it changes no data, controls or
-#   sample, only M7's internal stage placement.
-#
-# An exploratory block at the end fits — but does not tabulate — a ZINB top-3
-# exclusion (Panel C) and CFR top-3 exclusion models, for inspection only.
+# Diagnostics (D-block):
+#   D1, D2 — H2 extensive-margin diagnostics       — models.R Section 5
+#   D3     — M7 specification diagnostic           — models.R Section 5
+#   D4, D5 — top-3-exclusion diagnostics           — this script, section below
+# Diagnostics are not robustness checks: they probe a specification or an
+# estimator choice rather than confronting the finding with external data.
+# D4 (DCID ZINB top-3) and D5 (CFR top-3) are kept in code, with comments and
+# a table, as supplementary material — not reported in the thesis, but ready
+# in case the committee asks. The Poisson vs NB LR test (estimator
+# justification) lives in descriptive_statistics.R.
 ################################################################################
 
 rm(list = ls())
@@ -511,24 +512,28 @@ cat("Saved: outputs/tables/table_robustness_cfr.html\n")
 
 
 ################################################################################
-#   EXPLORATORY BLOCK — fitted but NOT tabulated
+#   DIAGNOSTICS D4-D5 — top-3-exclusion diagnostics (supplementary)
 ################################################################################
-# These models are kept for inspection only and are deliberately excluded from
-# the robustness tables above. They can be deleted without affecting R1-R6.
+# Supplementary material: kept in code with a table, but NOT reported in the
+# thesis. R2 already tests the dominant-attacker concern on the primary panel
+# (DCID Panel C, NB). D4 and D5 push the same question further, so the evidence
+# is ready if the committee asks.
 #
-#   E1: ZINB top-3 exclusion (Panel C). The two-stage ZINB may not converge
-#       cleanly once the dominant attackers are removed (sparse non-zero
-#       counts) — this is exactly why R2 uses NB. Wrapped in try().
-#   E2: CFR NB top-3 exclusion (Panels A and B). Tests whether the CFR H1
-#       result also survives dropping China, Russia and Iran.
+#   D4: ZINB top-3 exclusion (DCID Panel C). R2 uses NB because the two-stage
+#       ZINB may not converge once the dominant attackers are removed (sparse
+#       non-zero counts). D4 fits the ZINB anyway and reports whether it
+#       converged — a check on R2's estimator choice. Wrapped in try().
+#   D5: CFR NB top-3 exclusion (Panels A and B). Tests whether the CFR result
+#       (R3-R6) also survives dropping China, Russia and Iran. Tabulated to
+#       table_d5_cfr_top3.html.
 
 cat("\n\n############################################################\n")
-cat("#  EXPLORATORY BLOCK (not tabulated)                       #\n")
+cat("#  DIAGNOSTICS D4-D5 (supplementary, not in thesis)        #\n")
 cat("############################################################\n\n")
 
-# --- E1: ZINB top-3 exclusion (Panel C) ---
-cat("--- E1: ZINB excl. top-3 attackers (Panel C) ---\n\n")
-E1 <- try(
+# --- D4: ZINB top-3 exclusion (DCID Panel C) ---
+cat("--- D4: ZINB excl. top-3 attackers (DCID Panel C) ---\n\n")
+D4 <- try(
     zeroinfl(
         Incident_Count_Clean ~ attacker_w4 + victim_w4 +
             attacker_cinc + victim_cinc +
@@ -539,48 +544,75 @@ E1 <- try(
     ),
     silent = TRUE
 )
-if (inherits(E1, "try-error")) {
-    cat("E1 did not converge — confirms the choice of NB for R2.\n")
+if (inherits(D4, "try-error")) {
+    cat("D4 did not converge — confirms the choice of NB for R2.\n")
 } else {
-    e1_count <- coef(E1, "count")
-    e1_count_p <- summary(E1)$coefficients$count[, "Pr(>|z|)"]
+    d4_count <- coef(D4, "count")
+    d4_count_p <- summary(D4)$coefficients$count[, "Pr(>|z|)"]
     cat(sprintf(
-        "E1 count stage: attacker_w4 = %.4f, p = %.2e  [H1]\n",
-        e1_count["attacker_w4"], e1_count_p["attacker_w4"]
+        "D4 count stage: attacker_w4 = %.4f, p = %.2e  [H1]\n",
+        d4_count["attacker_w4"], d4_count_p["attacker_w4"]
     ))
 }
 
-# --- E2: CFR NB top-3 exclusion (Panels A and B) ---
-cat("\n--- E2: CFR NB excl. top-3 attackers ---\n\n")
+# --- D5: CFR NB top-3 exclusion (Panels A and B) ---
+cat("\n--- D5: CFR NB excl. top-3 attackers ---\n\n")
 df_cfr_2020_no_top3 <- df_cfr_2020 %>% filter(!attacker %in% top3)
 df_cfr_2016_no_top3 <- df_cfr_2016 %>% filter(!attacker %in% top3)
 
-E2a <- try(
-    fenegbin(
-        Incident_Count ~ attacker_w4 + attacker_ln_gdp_pc | Year,
-        data = df_cfr_2020_no_top3, vcov = ~attacker
-    ),
-    silent = TRUE
+D5a <- fenegbin(
+    Incident_Count ~ attacker_w4 + attacker_ln_gdp_pc | Year,
+    data = df_cfr_2020_no_top3, vcov = ~attacker
 )
-if (!inherits(E2a, "try-error")) {
-    cat(sprintf(
-        "E2a CFR NB (A) excl. top-3: attacker_w4 = %.4f, p = %.2e\n",
-        coef(E2a)["attacker_w4"], pvalue(E2a)["attacker_w4"]
-    ))
-}
+cat(sprintf(
+    "D5a CFR NB (A) excl. top-3: attacker_w4 = %.4f, p = %.2e\n",
+    coef(D5a)["attacker_w4"], pvalue(D5a)["attacker_w4"]
+))
 
-E2b <- try(
-    fenegbin(
-        Incident_Count ~ attacker_w4 + attacker_cinc + attacker_ln_gdp_pc | Year,
-        data = df_cfr_2016_no_top3, vcov = ~attacker
-    ),
-    silent = TRUE
+D5b <- fenegbin(
+    Incident_Count ~ attacker_w4 + attacker_cinc + attacker_ln_gdp_pc | Year,
+    data = df_cfr_2016_no_top3, vcov = ~attacker
 )
-if (!inherits(E2b, "try-error")) {
-    cat(sprintf(
-        "E2b CFR NB (B) excl. top-3: attacker_w4 = %.4f, p = %.2e\n",
-        coef(E2b)["attacker_w4"], pvalue(E2b)["attacker_w4"]
-    ))
-}
+cat(sprintf(
+    "D5b CFR NB (B) excl. top-3: attacker_w4 = %.4f, p = %.2e\n",
+    coef(D5b)["attacker_w4"], pvalue(D5b)["attacker_w4"]
+))
+
+# --- D5 table: CFR top-3 exclusion ---
+nz_cfr_2020_t3 <- sum(df_cfr_2020_no_top3$Incident_Count > 0)
+nz_cfr_2016_t3 <- sum(df_cfr_2016_no_top3$Incident_Count > 0)
+
+rows_d5 <- tibble(
+    term = c("Year FE", "Non-zero obs", "Total incidents"),
+    `D5a CFR NB (A) -top3` = c(
+        "Yes", as.character(nz_cfr_2020_t3),
+        as.character(sum(df_cfr_2020_no_top3$Incident_Count))
+    ),
+    `D5b CFR NB (B) -top3` = c(
+        "Yes", as.character(nz_cfr_2016_t3),
+        as.character(sum(df_cfr_2016_no_top3$Incident_Count))
+    )
+)
+attr(rows_d5, "position") <- c(NA, NA, NA)
+
+modelsummary(
+    list(
+        "D5a CFR NB (A) -top3" = D5a,
+        "D5b CFR NB (B) -top3" = D5b
+    ),
+    output = file.path(table_dir, "table_d5_cfr_top3.html"),
+    coef_map = cm_cfr,
+    gof_map = gm,
+    add_rows = rows_d5,
+    stars = c("*" = 0.05, "**" = 0.01, "***" = 0.001),
+    title = "Diagnostic D5: CFR Robustness Excluding the Top-3 Attackers",
+    notes = paste(
+        "Supplementary diagnostic (not reported in the thesis). CFR monadic",
+        "panels with China, Russia and Iran removed. D5a mirrors R3 (Panel A),",
+        "D5b mirrors R4 (Panel B). Country-clustered SEs, year FE. Confirms the",
+        "CFR H1 result does not depend on the dominant attackers."
+    )
+)
+cat("Saved: outputs/tables/table_d5_cfr_top3.html\n")
 
 cat("\nAll robustness tables saved to:", table_dir, "\n")
