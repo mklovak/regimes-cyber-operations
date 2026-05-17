@@ -1,260 +1,182 @@
 ##################### robustness.R #############################################
 # Political Regimes and State-Level Cyber Aggression
-# Robustness checks R1-R9
+# Robustness checks R1-R7
 #
-# Depends on: models.R must be run first (loads panels, fits main models)
-# If running standalone, uncomment Section 0 below.
+# This script is STANDALONE: it loads the panels itself and fits R1-R7
+# independently of models.R. Run order: data preparation.R ->
+# data_preparation_cfr.R -> descriptive statistics.R -> models.R -> robustness.R
 #
-# R1: Poisson vs NB LR test (Panel A) — estimator justification
-# R2: NB + year FE (Panel B)
-# R3: Logit + year FE (Panel B)
-# R4: NB CINC-only controls (Panel B)
-# R5: NB GDP-only controls (Panel B)
-# R6: Logit CINC-only controls (Panel B)
-# R7: Logit GDP-only controls (Panel B)
-# R4b-R7b: Same as R4-R7 on Panel C (primary clean panel)
-# R8: NB excl. top 3 attackers (Panel C)
-# R9: Logit excl. top 3 attackers (Panel C)
+# The seven robustness checks fall into four families:
+#
+#   Category 3 — Kinetic-conflict sensitivity
+#     R1: NB + MID at any hostility level (>=1), Panel B
+#         Confirms the MID hostility >=4 threshold used in M4/Panel C is not
+#         cherry-picked: H1 survives the broadest possible kinetic control.
+#
+#   Category 4 — Exclusion of dominant attackers
+#     R2: NB excluding the top-3 attackers (China, Russia, Iran), Panel C
+#         Confirms H1 is not driven by a few prolific autocracies.
+#
+#   Category 5 — Inflation-stage extension
+#     R3: ZINB with W4 added to the inflation stage, Panel C (extends M7)
+#         Reported as robustness, not a primary model, because adding W4 to
+#         the inflation stage destabilises the CINC coefficients
+#         (multicollinearity between W4 and CINC in the structural-zero stage).
+#
+#   CFR — Alternative dataset (the substantive robustness check)
+#     R4: CFR NB, Panel A (monadic, W4 + GDP)
+#     R5: CFR NB, Panel B (monadic, full controls)
+#     R6: CFR ZINB, Panel B (count-stage year FE)
+#     R7: CFR ZINB + year FE in both stages, Panel B (primary CFR spec)
+#         CFR (Council on Foreign Relations Cyber Operations Tracker) is a
+#         smaller, journalistically curated dataset. If H1 replicates on CFR
+#         with the same controls, it is not an artifact of DCID coding choices.
+#         CFR is monadic (sponsor known, victim not), so it tests H1 only.
+#
+# Estimator note (Poisson vs NB LR test) lives in descriptive statistics.R.
+# H2 extensive-margin diagnostics (D1, D2) live in models.R Section 5.
+#
+# An exploratory block at the end fits — but does not tabulate — a ZINB top-3
+# exclusion (Panel C) and CFR top-3 exclusion models, for inspection only.
 ################################################################################
 
-# Uncomment this section if running standalone (not after models.R):
-# rm(list = ls())
-# options(scipen = 999)
-# cat("\014")
-# library(tidyverse)
-# library(fixest)
-# library(pscl)
-# library(modelsummary)
-# library(MASS)
-#
-# df_2020 <- read_csv("outputs/df_model_2020.csv", show_col_types = FALSE) %>%
-#   mutate(directed_dyad_id = paste(attacker, victim, sep = "_"),
-#          has_attack = as.integer(Incident_Count > 0))
-# df_2016 <- read_csv("outputs/df_model_2016.csv", show_col_types = FALSE) %>%
-#   mutate(directed_dyad_id = paste(attacker, victim, sep = "_"),
-#          has_attack = as.integer(Incident_Count > 0))
-# df_2014 <- read_csv("outputs/df_model_2014.csv", show_col_types = FALSE) %>%
-#   mutate(directed_dyad_id = paste(attacker, victim, sep = "_"),
-#          has_attack_clean = as.integer(Incident_Count_Clean > 0))
+rm(list = ls())
+options(scipen = 999)
+cat("\014")
 
-cat("\n\n############################################################\n")
-cat("#  ROBUSTNESS CHECKS (R1-R9)                               #\n")
+library(tidyverse)
+library(fixest)
+library(pscl)
+library(modelsummary)
+library(tinytable)
+
+
+################################################################################
+#   SECTION 0: DATA LOADING
+################################################################################
+
+cat("############################################################\n")
+cat("#  ROBUSTNESS CHECKS (R1-R7)                               #\n")
 cat("############################################################\n\n")
 
+# --- DCID dyadic panels ---
+df_2016 <- read_csv("outputs/df_model_2016.csv", show_col_types = FALSE) %>%
+    mutate(directed_dyad_id = paste(attacker, victim, sep = "_"))
 
-################################################################################
-#   R1: Poisson vs NB — Likelihood Ratio Test (Panel A)
-################################################################################
-# Tests for overdispersion. If LR >> 0, Poisson is rejected and NB is
-# justified for all subsequent count models.
-# Also run inline in models.R Section 1; repeated here for completeness.
+df_2014 <- read_csv("outputs/df_model_2014.csv", show_col_types = FALSE) %>%
+    mutate(
+        directed_dyad_id = paste(attacker, victim, sep = "_"),
+        has_attack_clean = as.integer(Incident_Count_Clean > 0)
+    )
 
-cat("============================================================\n")
-cat("  R1: Poisson vs NB (Overdispersion LR Test)\n")
-cat("============================================================\n\n")
+# --- CFR monadic panels ---
+df_cfr_2020 <- read_csv("outputs/df_attacker_2020.csv", show_col_types = FALSE)
+df_cfr_2016 <- read_csv("outputs/df_attacker_2016.csv", show_col_types = FALSE)
 
-r1_pois <- glm(
-    Incident_Count ~ attacker_w4 + victim_w4 +
-        attacker_ln_gdp_pc + victim_ln_gdp_pc,
-    data = df_2020, family = poisson
+# --- Rebuild MID-any (hostility >= 1) on Panel B for R1 ---
+# Same construction as the mid_force / mid_any blocks in models.R Section 0.
+df_mid <- read_csv("data sources/dyadic_mid_4.03.csv", show_col_types = FALSE)
+
+cow_name_to_code <- c(
+    "United States of America" = 2, "Russia" = 365, "China" = 710,
+    "Iran" = 630, "North Korea" = 731, "South Korea" = 732,
+    "India" = 750, "Pakistan" = 770, "Israel" = 666, "Ukraine" = 369,
+    "Georgia" = 372, "Turkey" = 640, "Japan" = 740, "Taiwan" = 713,
+    "Vietnam" = 816, "Philippines" = 840, "Estonia" = 366,
+    "Lithuania" = 368, "Syria" = 652, "Saudi Arabia" = 670,
+    "Lebanon" = 660, "United Kingdom" = 200, "Germany" = 255,
+    "France" = 220, "Poland" = 290, "Canada" = 20
 )
 
-r1_nb <- MASS::glm.nb(
-    Incident_Count ~ attacker_w4 + victim_w4 +
-        attacker_ln_gdp_pc + victim_ln_gdp_pc,
-    data = df_2020, control = glm.control(maxit = 500)
-)
+mid_any_raw <- df_mid %>%
+    filter(year >= 2007, year <= 2014, hihost >= 1) %>%
+    dplyr::select(statea, stateb, year) %>%
+    distinct()
 
-lr_stat <- 2 * (logLik(r1_nb) - logLik(r1_pois))
-lr_pval <- pchisq(as.numeric(lr_stat), df = 1, lower.tail = FALSE)
+mid_any_names <- mid_any_raw %>%
+    mutate(
+        att1 = names(cow_name_to_code)[match(statea, cow_name_to_code)],
+        vic1 = names(cow_name_to_code)[match(stateb, cow_name_to_code)],
+        att2 = names(cow_name_to_code)[match(stateb, cow_name_to_code)],
+        vic2 = names(cow_name_to_code)[match(statea, cow_name_to_code)]
+    )
 
-cat(sprintf("Poisson log-lik: %.1f\n", logLik(r1_pois)))
-cat(sprintf("NB log-lik:      %.1f\n", logLik(r1_nb)))
-cat(sprintf("LR statistic:    %.1f\n", lr_stat))
-cat(sprintf("p-value:         %.2e\n", lr_pval))
-cat(sprintf("NB theta:        %.6f\n", r1_nb$theta))
-cat("\nConclusion: Poisson rejected. Severe overdispersion confirms NB.\n\n")
+mid_any_directed <- bind_rows(
+    mid_any_names %>%
+        filter(!is.na(att1) & !is.na(vic1)) %>%
+        dplyr::select(attacker = att1, victim = vic1, Year = year),
+    mid_any_names %>%
+        filter(!is.na(att2) & !is.na(vic2)) %>%
+        dplyr::select(attacker = att2, victim = vic2, Year = year)
+) %>%
+    distinct() %>%
+    mutate(mid_any = 1L)
+
+df_2016 <- df_2016 %>%
+    left_join(mid_any_directed, by = c("attacker", "victim", "Year")) %>%
+    mutate(
+        mid_any = case_when(
+            Year <= 2014 & !is.na(mid_any) ~ 1L,
+            Year <= 2014 & is.na(mid_any) ~ 0L,
+            Year > 2014 ~ NA_integer_
+        )
+    )
+
+cat(sprintf("DCID Panel B: %d obs | Panel C: %d obs\n", nrow(df_2016), nrow(df_2014)))
+cat(sprintf(
+    "CFR Panel A: %d country-years | CFR Panel B: %d country-years\n\n",
+    nrow(df_cfr_2020), nrow(df_cfr_2016)
+))
 
 
 ################################################################################
-#   R2: NB + Year Fixed Effects (Panel B)
+#   R1: NB + MID at any hostility level (Panel B) — kinetic sensitivity
 ################################################################################
-# Tests whether W4 effect survives temporal confounders.
-# Year FE absorb global trends in cyber activity (e.g. increasing digitisation,
-# Snowden revelations, policy changes).
+# M4 controls for MID at hostility >= 4 (use of force); Panel C drops those
+# dyad-years entirely. R1 uses the broadest MID definition — any militarized
+# dispute, hostility >= 1 — to confirm the >=4 threshold is not cherry-picked.
+# mid_any is NA for 2015-2016 (MID coverage ends 2014), so R1 is effectively
+# estimated on 2007-2014.
 
 cat("============================================================\n")
-cat("  R2: NB + Year FE (Panel B)\n")
+cat("  R1: NB + MID any hostility (>=1), Panel B\n")
 cat("============================================================\n\n")
 
-R2 <- fenegbin(
+R1 <- fenegbin(
     Incident_Count ~ attacker_w4 + victim_w4 +
         attacker_cinc + victim_cinc +
         attacker_ln_gdp_pc + victim_ln_gdp_pc +
-        as.factor(Year),
+        mid_any | Year,
     data = df_2016,
     vcov = ~directed_dyad_id
 )
-print(summary(R2))
+print(summary(R1))
 
 cat(sprintf(
-    "\nR2: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R2)["attacker_w4"], pvalue(R2)["attacker_w4"]
+    "\nR1: attacker_w4 = %.4f, p = %.2e  [H1]\n",
+    coef(R1)["attacker_w4"], pvalue(R1)["attacker_w4"]
 ))
 cat(sprintf(
-    "    Compare M5: attacker_w4 = %.4f, p = %.2e\n",
-    coef(M5)["attacker_w4"], pvalue(M5)["attacker_w4"]
+    "    victim_w4   = %.4f, p = %.2e  [H2]\n",
+    coef(R1)["victim_w4"], pvalue(R1)["victim_w4"]
+))
+cat(sprintf(
+    "    mid_any     = %.4f, p = %.2e\n",
+    coef(R1)["mid_any"], pvalue(R1)["mid_any"]
 ))
 
 
 ################################################################################
-#   R3: Logit + Year Fixed Effects (Panel B)
+#   R2: NB excluding top-3 attackers (Panel C) — dominant-attacker sensitivity
 ################################################################################
+# China, Russia and Iran dominate the incident count. If H1 holds without
+# them, it is not driven by a few prolific autocracies. NB (not ZINB): with
+# the top-3 removed the non-zero count is too sparse for stable two-stage
+# ZINB estimation; NB degrades gracefully (wider SEs) rather than failing to
+# converge. NB on Panel C mirrors M5.
 
 cat("\n\n============================================================\n")
-cat("  R3: Logit + Year FE (Panel B)\n")
-cat("============================================================\n\n")
-
-R3 <- feglm(
-    has_attack ~ attacker_w4 + victim_w4 +
-        attacker_cinc + victim_cinc +
-        attacker_ln_gdp_pc + victim_ln_gdp_pc +
-        as.factor(Year),
-    data = df_2016,
-    family = binomial,
-    vcov = ~directed_dyad_id
-)
-print(summary(R3))
-
-cat(sprintf(
-    "\nR3: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R3)["attacker_w4"], pvalue(R3)["attacker_w4"]
-))
-cat(sprintf(
-    "    Compare M6: attacker_w4 = %.4f, p = %.2e\n",
-    coef(M6)["attacker_w4"], pvalue(M6)["attacker_w4"]
-))
-
-
-################################################################################
-#   R4: NB CINC-only controls (Panel B)
-################################################################################
-# Tests W4 effect without GDP. If W4 is significant here, it's not an
-# artifact of GDP collinearity.
-
-cat("\n\n============================================================\n")
-cat("  R4: NB CINC-only (Panel B)\n")
-cat("============================================================\n\n")
-
-R4 <- fenegbin(
-    Incident_Count ~ attacker_w4 + victim_w4 +
-        attacker_cinc + victim_cinc,
-    data = df_2016,
-    vcov = ~directed_dyad_id
-)
-print(summary(R4))
-
-cat(sprintf(
-    "\nR4: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R4)["attacker_w4"], pvalue(R4)["attacker_w4"]
-))
-
-
-################################################################################
-#   R5: NB GDP-only controls (Panel B)
-################################################################################
-# Tests W4 effect without CINC. If W4 is significant here, it's not an
-# artifact of CINC collinearity.
-
-cat("\n\n============================================================\n")
-cat("  R5: NB GDP-only (Panel B)\n")
-cat("============================================================\n\n")
-
-R5 <- fenegbin(
-    Incident_Count ~ attacker_w4 + victim_w4 +
-        attacker_ln_gdp_pc + victim_ln_gdp_pc,
-    data = df_2016,
-    vcov = ~directed_dyad_id
-)
-print(summary(R5))
-
-cat(sprintf(
-    "\nR5: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R5)["attacker_w4"], pvalue(R5)["attacker_w4"]
-))
-
-
-################################################################################
-#   R6: Logit CINC-only controls (Panel B)
-################################################################################
-# Key diagnostic (compare with R7): does H2 fail because of CINC
-# specifically, or because of any capability control?
-
-cat("\n\n============================================================\n")
-cat("  R6: Logit CINC-only (Panel B)\n")
-cat("============================================================\n\n")
-
-R6 <- feglm(
-    has_attack ~ attacker_w4 + victim_w4 +
-        attacker_cinc + victim_cinc,
-    data = df_2016,
-    family = binomial,
-    vcov = ~directed_dyad_id
-)
-print(summary(R6))
-
-cat(sprintf(
-    "\nR6: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R6)["attacker_w4"], pvalue(R6)["attacker_w4"]
-))
-
-
-################################################################################
-#   R7: Logit GDP-only controls (Panel B)
-################################################################################
-# KEY DIAGNOSTIC: If H2 is significant here but not in R6 or M6,
-# it proves that CINC (material capability) is what absorbs the
-# extensive margin variance — not GDP, not controls in general.
-
-cat("\n\n============================================================\n")
-cat("  R7: Logit GDP-only (Panel B)\n")
-cat("============================================================\n\n")
-
-R7 <- feglm(
-    has_attack ~ attacker_w4 + victim_w4 +
-        attacker_ln_gdp_pc + victim_ln_gdp_pc,
-    data = df_2016,
-    family = binomial,
-    vcov = ~directed_dyad_id
-)
-print(summary(R7))
-
-cat(sprintf(
-    "\nR7: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R7)["attacker_w4"], pvalue(R7)["attacker_w4"]
-))
-
-cat("\n--- R6 vs R7 Diagnostic ---\n")
-cat(sprintf(
-    "  R6 Logit CINC-only: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R6)["attacker_w4"], pvalue(R6)["attacker_w4"]
-))
-cat(sprintf(
-    "  R7 Logit GDP-only:  attacker_w4 = %.4f, p = %.2e\n",
-    coef(R7)["attacker_w4"], pvalue(R7)["attacker_w4"]
-))
-cat("If R7 is significant but R6 is not: CINC specifically absorbs H2.\n")
-cat("The binary entry decision is capability-driven, not wealth-driven.\n")
-
-
-################################################################################
-#   R8: NB excluding top 3 attackers (Panel C)
-################################################################################
-# China, Russia, Iran dominate the incident count. If H1 holds without
-# them, it's not driven by a few prolific autocracies.
-
-cat("\n\n============================================================\n")
-cat("  R8: NB excl. top 3 attackers (Panel C — clean panel)\n")
+cat("  R2: NB excl. top-3 attackers (Panel C — clean panel)\n")
 cat("============================================================\n\n")
 
 top3 <- c("China", "Russia", "Iran")
@@ -262,173 +184,150 @@ df_2014_no_top3 <- df_2014 %>%
     filter(!attacker %in% top3)
 
 cat(sprintf(
-    "Panel C obs: %d -> excl. top 3: %d\n",
+    "Panel C obs: %d -> excl. top-3: %d\n",
     nrow(df_2014), nrow(df_2014_no_top3)
 ))
 cat(sprintf(
-    "Incidents: %d -> excl. top 3: %d\n",
+    "Incidents: %d -> excl. top-3: %d\n",
     sum(df_2014$Incident_Count_Clean),
     sum(df_2014_no_top3$Incident_Count_Clean)
 ))
 
-R8 <- fenegbin(
+R2 <- fenegbin(
     Incident_Count_Clean ~ attacker_w4 + victim_w4 +
         attacker_cinc + victim_cinc +
-        attacker_ln_gdp_pc + victim_ln_gdp_pc,
+        attacker_ln_gdp_pc + victim_ln_gdp_pc | Year,
     data = df_2014_no_top3,
     vcov = ~directed_dyad_id
 )
-print(summary(R8))
+print(summary(R2))
 
 cat(sprintf(
-    "\nR8: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R8)["attacker_w4"], pvalue(R8)["attacker_w4"]
+    "\nR2: attacker_w4 = %.4f, p = %.2e  [H1]\n",
+    coef(R2)["attacker_w4"], pvalue(R2)["attacker_w4"]
 ))
 cat(sprintf(
-    "    Compare M10: attacker_w4 = %.4f, p = %.2e\n",
-    coef(M10)["attacker_w4"], pvalue(M10)["attacker_w4"]
+    "    victim_w4   = %.4f, p = %.2e  [H2]\n",
+    coef(R2)["victim_w4"], pvalue(R2)["victim_w4"]
 ))
 
 
 ################################################################################
-#   R9: Logit excluding top 3 attackers (Panel C)
+#   R3: ZINB with W4 in the inflation stage (Panel C) — extends M7
 ################################################################################
+# M7 puts only CINC in the inflation stage. R3 adds W4 to the inflation stage
+# as well, mirroring the count-stage specification. Reported as robustness,
+# not a primary model: adding W4 to the inflation stage destabilises the CINC
+# coefficients (W4 and CINC are collinear in the structural-zero stage).
+# Inflation-stage signs are FLIPPED relative to the count stage — the
+# inflation stage models P(structural zero).
 
 cat("\n\n============================================================\n")
-cat("  R9: Logit excl. top 3 attackers (Panel C — clean panel)\n")
+cat("  R3: ZINB + W4 in inflation stage (Panel C) — extends M7\n")
 cat("============================================================\n\n")
 
-R9 <- feglm(
-    has_attack_clean ~ attacker_w4 + victim_w4 +
-        attacker_cinc + victim_cinc +
-        attacker_ln_gdp_pc + victim_ln_gdp_pc,
-    data = df_2014_no_top3,
-    family = binomial,
-    vcov = ~directed_dyad_id
-)
-print(summary(R9))
-
-cat(sprintf(
-    "\nR9: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R9)["attacker_w4"], pvalue(R9)["attacker_w4"]
-))
-cat(sprintf(
-    "    Compare M11: attacker_w4 = %.4f, p = %.2e\n",
-    coef(M11)["attacker_w4"], pvalue(M11)["attacker_w4"]
-))
-
-
-################################################################################
-#   R4b: NB CINC-only controls (Panel C)
-################################################################################
-# Same as R4 but on the primary clean panel.
-
-cat("\n\n============================================================\n")
-cat("  R4b: NB CINC-only (Panel C — clean panel)\n")
-cat("============================================================\n\n")
-
-R4b <- fenegbin(
+R3 <- zeroinfl(
     Incident_Count_Clean ~ attacker_w4 + victim_w4 +
-        attacker_cinc + victim_cinc,
+        attacker_cinc + victim_cinc +
+        attacker_ln_gdp_pc + victim_ln_gdp_pc + as.factor(Year) |
+        attacker_w4 + victim_w4 +
+            attacker_cinc + victim_cinc + as.factor(Year),
     data = df_2014,
-    vcov = ~directed_dyad_id
+    dist = "negbin"
 )
-print(summary(R4b))
+print(summary(R3))
 
+r3_count <- coef(R3, "count")
+r3_count_p <- summary(R3)$coefficients$count[, "Pr(>|z|)"]
 cat(sprintf(
-    "\nR4b: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R4b)["attacker_w4"], pvalue(R4b)["attacker_w4"]
+    "\nR3 count stage: attacker_w4 = %.4f, p = %.2e  [H1]\n",
+    r3_count["attacker_w4"], r3_count_p["attacker_w4"]
 ))
 cat(sprintf(
-    "     Compare R4 (Panel B): %.4f, p = %.2e\n",
+    "                victim_w4   = %.4f, p = %.2e  [H2]\n",
+    r3_count["victim_w4"], r3_count_p["victim_w4"]
+))
+
+
+################################################################################
+#   R4-R7: CFR alternative dataset (monadic, H1 only)
+################################################################################
+# CFR is monadic — the sponsor (attacker) is identified but not the victim —
+# so the panel is country-year and only H1 is testable. R4-R7 mirror the DCID
+# main models: R4 ~ M1, R5 ~ M2, R6 ~ M3/M6, R7 ~ M7 (primary). NB models use
+# country-clustered SEs; ZINB models use model-based SEs (pscl does not
+# support clustering).
+
+cat("\n\n============================================================\n")
+cat("  R4: CFR NB, Panel A (monadic, W4 + GDP)\n")
+cat("============================================================\n\n")
+
+R4 <- fenegbin(
+    Incident_Count ~ attacker_w4 + attacker_ln_gdp_pc | Year,
+    data = df_cfr_2020,
+    vcov = ~attacker
+)
+print(summary(R4))
+cat(sprintf(
+    "\nR4: attacker_w4 = %.4f, p = %.2e  [H1]\n",
     coef(R4)["attacker_w4"], pvalue(R4)["attacker_w4"]
 ))
 
 
-################################################################################
-#   R5b: NB GDP-only controls (Panel C)
-################################################################################
-
 cat("\n\n============================================================\n")
-cat("  R5b: NB GDP-only (Panel C — clean panel)\n")
+cat("  R5: CFR NB, Panel B (monadic, full controls)\n")
 cat("============================================================\n\n")
 
-R5b <- fenegbin(
-    Incident_Count_Clean ~ attacker_w4 + victim_w4 +
-        attacker_ln_gdp_pc + victim_ln_gdp_pc,
-    data = df_2014,
-    vcov = ~directed_dyad_id
+R5 <- fenegbin(
+    Incident_Count ~ attacker_w4 + attacker_cinc + attacker_ln_gdp_pc | Year,
+    data = df_cfr_2016,
+    vcov = ~attacker
 )
-print(summary(R5b))
-
+print(summary(R5))
 cat(sprintf(
-    "\nR5b: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R5b)["attacker_w4"], pvalue(R5b)["attacker_w4"]
-))
-cat(sprintf(
-    "     Compare R5 (Panel B): %.4f, p = %.2e\n",
+    "\nR5: attacker_w4 = %.4f, p = %.2e  [H1]\n",
     coef(R5)["attacker_w4"], pvalue(R5)["attacker_w4"]
 ))
 
 
-################################################################################
-#   R6b: Logit CINC-only controls (Panel C)
-################################################################################
-# Key diagnostic on the primary panel: does CINC absorb H2 here too?
-
 cat("\n\n============================================================\n")
-cat("  R6b: Logit CINC-only (Panel C — clean panel)\n")
+cat("  R6: CFR ZINB, Panel B (count-stage year FE)\n")
 cat("============================================================\n\n")
 
-R6b <- feglm(
-    has_attack_clean ~ attacker_w4 + victim_w4 +
-        attacker_cinc + victim_cinc,
-    data = df_2014,
-    family = binomial,
-    vcov = ~directed_dyad_id
+R6 <- zeroinfl(
+    Incident_Count ~ attacker_w4 + attacker_cinc + attacker_ln_gdp_pc +
+        as.factor(Year) | attacker_cinc,
+    data = df_cfr_2016,
+    dist = "negbin"
 )
-print(summary(R6b))
+print(summary(R6))
 
+r6_count <- coef(R6, "count")
+r6_count_p <- summary(R6)$coefficients$count[, "Pr(>|z|)"]
 cat(sprintf(
-    "\nR6b: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R6b)["attacker_w4"], pvalue(R6b)["attacker_w4"]
+    "\nR6 count stage: attacker_w4 = %.4f, p = %.2e  [H1]\n",
+    r6_count["attacker_w4"], r6_count_p["attacker_w4"]
 ))
 
-
-################################################################################
-#   R7b: Logit GDP-only controls (Panel C)
-################################################################################
-# KEY DIAGNOSTIC on primary panel: if H2 is significant here but not in
-# R6b, the CINC absorption pattern replicates on the clean panel.
 
 cat("\n\n============================================================\n")
-cat("  R7b: Logit GDP-only (Panel C — clean panel)\n")
+cat("  R7: CFR ZINB + year FE in both stages, Panel B — primary CFR\n")
 cat("============================================================\n\n")
 
-R7b <- feglm(
-    has_attack_clean ~ attacker_w4 + victim_w4 +
-        attacker_ln_gdp_pc + victim_ln_gdp_pc,
-    data = df_2014,
-    family = binomial,
-    vcov = ~directed_dyad_id
+R7 <- zeroinfl(
+    Incident_Count ~ attacker_w4 + attacker_cinc + attacker_ln_gdp_pc +
+        as.factor(Year) | attacker_cinc + as.factor(Year),
+    data = df_cfr_2016,
+    dist = "negbin"
 )
-print(summary(R7b))
+print(summary(R7))
 
+r7_count <- coef(R7, "count")
+r7_count_p <- summary(R7)$coefficients$count[, "Pr(>|z|)"]
 cat(sprintf(
-    "\nR7b: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R7b)["attacker_w4"], pvalue(R7b)["attacker_w4"]
+    "\nR7 count stage: attacker_w4 = %.4f, p = %.2e  [H1, PRIMARY CFR]\n",
+    r7_count["attacker_w4"], r7_count_p["attacker_w4"]
 ))
-
-cat("\n--- R6b vs R7b Diagnostic (Panel C) ---\n")
-cat(sprintf(
-    "  R6b Logit CINC-only: attacker_w4 = %.4f, p = %.2e\n",
-    coef(R6b)["attacker_w4"], pvalue(R6b)["attacker_w4"]
-))
-cat(sprintf(
-    "  R7b Logit GDP-only:  attacker_w4 = %.4f, p = %.2e\n",
-    coef(R7b)["attacker_w4"], pvalue(R7b)["attacker_w4"]
-))
-cat("Compare with R6/R7 (Panel B) — pattern should replicate.\n")
 
 
 ################################################################################
@@ -436,213 +335,310 @@ cat("Compare with R6/R7 (Panel B) — pattern should replicate.\n")
 ################################################################################
 
 cat("\n\n############################################################\n")
-cat("#  ROBUSTNESS SUMMARY                                      #\n")
+cat("#  ROBUSTNESS SUMMARY (R1-R7)                              #\n")
 cat("############################################################\n\n")
 
-cat("--- H1 (frequency, NB) ---\n")
-cat("  Panel B:\n")
+cat("--- H1 (attacker_w4) across robustness checks ---\n")
 cat(sprintf(
-    "  M5   NB baseline:      %.4f  p = %.2e\n",
-    coef(M5)["attacker_w4"], pvalue(M5)["attacker_w4"]
+    "  R1  NB + MID-any (B):        %+.4f  p = %.2e\n",
+    coef(R1)["attacker_w4"], pvalue(R1)["attacker_w4"]
 ))
 cat(sprintf(
-    "  M8b  NB+MID(>=4):      %.4f  p = %.2e\n",
-    coef(M8b)["attacker_w4"], pvalue(M8b)["attacker_w4"]
-))
-cat(sprintf(
-    "  R2   NB + year FE:     %.4f  p = %.2e\n",
+    "  R2  NB excl. top-3 (C):      %+.4f  p = %.2e\n",
     coef(R2)["attacker_w4"], pvalue(R2)["attacker_w4"]
 ))
 cat(sprintf(
-    "  R4   NB CINC-only:     %.4f  p = %.2e\n",
+    "  R3  ZINB + W4 inflation (C): %+.4f  p = %.2e\n",
+    r3_count["attacker_w4"], r3_count_p["attacker_w4"]
+))
+cat(sprintf(
+    "  R4  CFR NB (A):              %+.4f  p = %.2e\n",
     coef(R4)["attacker_w4"], pvalue(R4)["attacker_w4"]
 ))
 cat(sprintf(
-    "  R5   NB GDP-only:      %.4f  p = %.2e\n",
+    "  R5  CFR NB (B):              %+.4f  p = %.2e\n",
     coef(R5)["attacker_w4"], pvalue(R5)["attacker_w4"]
 ))
-cat("  Panel C (primary):\n")
 cat(sprintf(
-    "  R4b  NB CINC-only:     %.4f  p = %.2e\n",
-    coef(R4b)["attacker_w4"], pvalue(R4b)["attacker_w4"]
+    "  R6  CFR ZINB (B):            %+.4f  p = %.2e\n",
+    r6_count["attacker_w4"], r6_count_p["attacker_w4"]
 ))
 cat(sprintf(
-    "  R5b  NB GDP-only:      %.4f  p = %.2e\n",
-    coef(R5b)["attacker_w4"], pvalue(R5b)["attacker_w4"]
+    "  R7  CFR ZINB+FE (B):         %+.4f  p = %.2e\n",
+    r7_count["attacker_w4"], r7_count_p["attacker_w4"]
 ))
-cat(sprintf(
-    "  R8   NB excl. top 3:   %.4f  p = %.2e\n",
-    coef(R8)["attacker_w4"], pvalue(R8)["attacker_w4"]
-))
-
-cat("\n--- H2 (likelihood, Logit) ---\n")
-cat("  Panel B:\n")
-cat(sprintf(
-    "  M6   Logit baseline:   %.4f  p = %.2e\n",
-    coef(M6)["attacker_w4"], pvalue(M6)["attacker_w4"]
-))
-cat(sprintf(
-    "  M9b  Logit+MID(>=4):   %.4f  p = %.2e\n",
-    coef(M9b)["attacker_w4"], pvalue(M9b)["attacker_w4"]
-))
-cat(sprintf(
-    "  R3   Logit + year FE:  %.4f  p = %.2e\n",
-    coef(R3)["attacker_w4"], pvalue(R3)["attacker_w4"]
-))
-cat(sprintf(
-    "  R6   Logit CINC-only:  %.4f  p = %.2e\n",
-    coef(R6)["attacker_w4"], pvalue(R6)["attacker_w4"]
-))
-cat(sprintf(
-    "  R7   Logit GDP-only:   %.4f  p = %.2e  <- KEY DIAGNOSTIC\n",
-    coef(R7)["attacker_w4"], pvalue(R7)["attacker_w4"]
-))
-cat("  Panel C (primary):\n")
-cat(sprintf(
-    "  R6b  Logit CINC-only:  %.4f  p = %.2e\n",
-    coef(R6b)["attacker_w4"], pvalue(R6b)["attacker_w4"]
-))
-cat(sprintf(
-    "  R7b  Logit GDP-only:   %.4f  p = %.2e  <- KEY DIAGNOSTIC (primary)\n",
-    coef(R7b)["attacker_w4"], pvalue(R7b)["attacker_w4"]
-))
-cat(sprintf(
-    "  R9   Logit excl. top3: %.4f  p = %.2e\n",
-    coef(R9)["attacker_w4"], pvalue(R9)["attacker_w4"]
-))
-
-cat("\n--- Estimator ---\n")
-cat(sprintf(
-    "  R1   LR test:          %.1f  p = %.2e  -> Poisson rejected\n",
-    lr_stat, lr_pval
-))
-
-cat("\n\n--- Regression Table (robustness checks) ---\n\n")
-
-etable(R2, R3, R4, R5, R6, R7, R4b, R5b, R6b, R7b, R8, R9,
-    headers = c(
-        "R2 NB+FE", "R3 Log+FE",
-        "R4 NB CINC", "R5 NB GDP",
-        "R6 Log CINC", "R7 Log GDP",
-        "R4b NB CINC*", "R5b NB GDP*",
-        "R6b Log CINC*", "R7b Log GDP*",
-        "R8 NB -top3", "R9 Log -top3"
-    ),
-    se.below = TRUE,
-    fitstat = ~ n + ll + aic + bic,
-    dict = c(
-        attacker_w4        = "Attacker W4",
-        victim_w4          = "Victim W4",
-        attacker_cinc      = "Attacker CINC",
-        victim_cinc        = "Victim CINC",
-        attacker_ln_gdp_pc = "Attacker ln(GDP p.c.)",
-        victim_ln_gdp_pc   = "Victim ln(GDP p.c.)"
-    )
-)
 
 cat("\n--- Conclusion ---\n")
-cat("H1 is robust across year FE, partial controls, and excluding dominant\n")
-cat("attackers — on both Panel B and Panel C. H2 remains not supported;\n")
-cat("the R6/R7 and R6b/R7b comparisons confirm on both panels that material\n")
-cat("capability (CINC) specifically absorbs the extensive margin, consistent\n")
-cat("with the accountability bypass interpretation.\n")
+cat("The attacker_w4 coefficient is negative across all seven robustness checks,\n")
+cat("with magnitudes consistent with the main models M1-M7. It is statistically\n")
+cat("significant (p < 0.05) in five of seven: R3 and the four CFR checks R4-R7.\n")
+cat("In R1 (broadest kinetic control) significance is marginal (p ~ 0.05-0.06);\n")
+cat("in R2 (dominant attackers removed) the sign and magnitude hold but\n")
+cat("significance is lost (p ~ 0.10) — this reflects the sharp drop in non-zero\n")
+cat("observations once China, Russia and Iran are excluded, i.e. lost power\n")
+cat("rather than a sign reversal. H2 (victim_w4) remains not supported throughout.\n")
 
 
 ################################################################################
-#   HTML TABLES (modelsummary)
+#   ROBUSTNESS TABLES
 ################################################################################
 
 cat("\n\n############################################################\n")
-cat("#  ROBUSTNESS HTML TABLES                                  #\n")
+cat("#  ROBUSTNESS TABLES                                       #\n")
 cat("############################################################\n\n")
 
 table_dir <- "outputs/tables"
 if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
 
-cm_rob <- c(
-    "attacker_w4"        = "Attacker W4",
-    "victim_w4"          = "Victim W4",
-    "attacker_cinc"      = "Attacker CINC",
-    "victim_cinc"        = "Victim CINC",
-    "attacker_ln_gdp_pc" = "Attacker ln(GDP p.c.)",
-    "victim_ln_gdp_pc"   = "Victim ln(GDP p.c.)",
-    "(Intercept)"        = "Intercept"
+
+# --- Table: robustness overview (specifications, analogous to Table 4) ---
+overview <- tibble(
+    Model = c("R1", "R2", "R3", "R4", "R5", "R6", "R7"),
+    Category = c(
+        "Kinetic-conflict sensitivity",
+        "Dominant-attacker exclusion",
+        "Inflation-stage extension",
+        "CFR alternative dataset",
+        "CFR alternative dataset",
+        "CFR alternative dataset",
+        "CFR alternative dataset"
+    ),
+    Estimator = c("NB", "NB", "ZINB", "NB", "NB", "ZINB", "ZINB+FE"),
+    Panel = c(
+        "B (2007-2014)", "C (2007-2014)", "C (2007-2014)",
+        "CFR A (2007-2020)", "CFR B (2007-2016)",
+        "CFR B (2007-2016)", "CFR B (2007-2016)"
+    ),
+    `Specification` = c(
+        "M2 + MID at any hostility (>=1)",
+        "M5 excluding China, Russia, Iran",
+        "M7 + W4 added to the inflation stage",
+        "Monadic; W4 + GDP; year FE",
+        "Monadic; W4 + CINC + GDP; year FE",
+        "Monadic ZINB; year FE in count stage",
+        "Monadic ZINB; year FE in both stages (primary CFR)"
+    )
 )
 
-gm_rob <- list(
+tt(overview,
+    caption = "Robustness Models Overview (R1-R7)"
+) %>%
+    save_tt(file.path(table_dir, "table_robustness_overview.html"), overwrite = TRUE)
+cat("Saved: outputs/tables/table_robustness_overview.html\n")
+
+
+# --- Coefficient maps & GOF ---
+cm_dcid <- c(
+    "attacker_w4"              = "Attacker W4 [H1]",
+    "count_attacker_w4"        = "Attacker W4 [H1]",
+    "victim_w4"                = "Victim W4 [H2]",
+    "count_victim_w4"          = "Victim W4 [H2]",
+    "attacker_cinc"            = "Attacker CINC",
+    "count_attacker_cinc"      = "Attacker CINC",
+    "victim_cinc"              = "Victim CINC",
+    "count_victim_cinc"        = "Victim CINC",
+    "attacker_ln_gdp_pc"       = "Attacker ln(GDP p.c.)",
+    "count_attacker_ln_gdp_pc" = "Attacker ln(GDP p.c.)",
+    "victim_ln_gdp_pc"         = "Victim ln(GDP p.c.)",
+    "count_victim_ln_gdp_pc"   = "Victim ln(GDP p.c.)",
+    "mid_any"                  = "MID any hostility (≥1)",
+    "(Intercept)"              = "Intercept",
+    "count_(Intercept)"        = "Intercept"
+)
+
+cm_cfr <- c(
+    "attacker_w4"              = "Attacker W4 [H1]",
+    "count_attacker_w4"        = "Attacker W4 [H1]",
+    "attacker_cinc"            = "Attacker CINC",
+    "count_attacker_cinc"      = "Attacker CINC",
+    "attacker_ln_gdp_pc"       = "Attacker ln(GDP p.c.)",
+    "count_attacker_ln_gdp_pc" = "Attacker ln(GDP p.c.)",
+    "(Intercept)"              = "Intercept",
+    "count_(Intercept)"        = "Intercept"
+)
+
+gm <- list(
     list("raw" = "nobs", "clean" = "Observations", "fmt" = 0),
     list("raw" = "logLik", "clean" = "Log-Likelihood", "fmt" = 1),
+    list("raw" = "ll", "clean" = "Log-Likelihood", "fmt" = 1),
     list("raw" = "AIC", "clean" = "AIC", "fmt" = 1),
-    list("raw" = "BIC", "clean" = "BIC", "fmt" = 1)
+    list("raw" = "aic", "clean" = "AIC", "fmt" = 1)
 )
 
-# Non-zero stats
-nz_2016 <- sum(df_2016$Incident_Count > 0)
-nz_2014 <- sum(df_2014$Incident_Count_Clean > 0)
-nz_no_top3 <- sum(df_2014_no_top3$Incident_Count_Clean > 0)
-ti_2016 <- as.character(sum(df_2016$Incident_Count))
-ti_2014 <- as.character(sum(df_2014$Incident_Count_Clean))
-ti_no_top3 <- as.character(sum(df_2014_no_top3$Incident_Count_Clean))
-pct_2016 <- sprintf("%.4f%%", nz_2016 / nrow(df_2016) * 100)
-pct_2014 <- sprintf("%.4f%%", nz_2014 / nrow(df_2014) * 100)
-pct_no_top3 <- sprintf("%.4f%%", nz_no_top3 / nrow(df_2014_no_top3) * 100)
 
+# --- Table: DCID robustness (R1-R3) ---
+df_r1 <- df_2016 %>% filter(!is.na(mid_any))
+nz_r1 <- sum(df_r1$Incident_Count > 0)
+nz_r2 <- sum(df_2014_no_top3$Incident_Count_Clean > 0)
+nz_r3 <- sum(df_2014$Incident_Count_Clean > 0)
 
-# --- Table 6: Robustness NB (R2, R4, R5, R4b, R5b, R8) ---
-rows_t6 <- tibble(
-    term = c("Non-zero obs", "% non-zero", "Total incidents"),
-    `R2 NB+FE` = c(as.character(nz_2016), pct_2016, ti_2016),
-    `R4 NB CINC (B)` = c(as.character(nz_2016), pct_2016, ti_2016),
-    `R5 NB GDP (B)` = c(as.character(nz_2016), pct_2016, ti_2016),
-    `R4b NB CINC (C)` = c(as.character(nz_2014), pct_2014, ti_2014),
-    `R5b NB GDP (C)` = c(as.character(nz_2014), pct_2014, ti_2014),
-    `R8 NB excl. top3` = c(as.character(nz_no_top3), pct_no_top3, ti_no_top3)
+rows_dcid <- tibble(
+    term = c("Year FE", "Non-zero obs", "% non-zero", "Total incidents"),
+    `R1 NB+MID-any (B)` = c(
+        "Yes", as.character(nz_r1),
+        sprintf("%.4f%%", 100 * nz_r1 / nrow(df_r1)),
+        as.character(sum(df_r1$Incident_Count))
+    ),
+    `R2 NB excl. top-3 (C)` = c(
+        "Yes", as.character(nz_r2),
+        sprintf("%.4f%%", 100 * nz_r2 / nrow(df_2014_no_top3)),
+        as.character(sum(df_2014_no_top3$Incident_Count_Clean))
+    ),
+    `R3 ZINB+W4-infl (C)` = c(
+        "Yes (both)", as.character(nz_r3),
+        sprintf("%.4f%%", 100 * nz_r3 / nrow(df_2014)),
+        as.character(sum(df_2014$Incident_Count_Clean))
+    )
 )
-attr(rows_t6, "position") <- c(NA, NA, NA)
+attr(rows_dcid, "position") <- c(NA, NA, NA, NA)
 
 modelsummary(
     list(
-        "R2 NB+FE" = R2, "R4 NB CINC (B)" = R4,
-        "R5 NB GDP (B)" = R5, "R4b NB CINC (C)" = R4b,
-        "R5b NB GDP (C)" = R5b, "R8 NB excl. top3" = R8
+        "R1 NB+MID-any (B)"     = R1,
+        "R2 NB excl. top-3 (C)" = R2,
+        "R3 ZINB+W4-infl (C)"   = R3
     ),
-    output = file.path(table_dir, "table6_robustness_nb.html"),
-    coef_map = cm_rob,
-    gof_map = gm_rob,
-    add_rows = rows_t6,
+    output = file.path(table_dir, "table_robustness_dcid.html"),
+    coef_map = cm_dcid,
+    gof_map = gm,
+    add_rows = rows_dcid,
     stars = c("*" = 0.05, "**" = 0.01, "***" = 0.001),
-    title = "Robustness: H1 (Frequency) — Negative Binomial Specifications",
-    notes = "Dyad-clustered SEs. (B) = Panel B, (C) = Panel C (clean). R2: year FE. R4/R4b: CINC-only. R5/R5b: GDP-only. R8: excl. China, Russia, Iran."
+    title = "Robustness Checks on the DCID Data (R1-R3)",
+    notes = paste(
+        "R1: M2 + MID at any hostility (>=1), Panel B, effectively 2007-2014.",
+        "R2: M5 excluding China, Russia and Iran, Panel C. R3: M7 with W4 added",
+        "to the inflation stage, Panel C; the table shows count-stage coefficients.",
+        "Dyad-clustered SEs for NB models; model-based SEs for the ZINB model."
+    )
 )
-cat("Saved: outputs/tables/table6_robustness_nb.html\n")
+cat("Saved: outputs/tables/table_robustness_dcid.html\n")
 
 
-# --- Table 7: Robustness Logit (R3, R6, R7, R6b, R7b, R9) ---
-rows_t7 <- tibble(
-    term = c("Non-zero obs", "% non-zero"),
-    `R3 Logit+FE` = c(as.character(nz_2016), pct_2016),
-    `R6 Logit CINC (B)` = c(as.character(nz_2016), pct_2016),
-    `R7 Logit GDP (B)` = c(as.character(nz_2016), pct_2016),
-    `R6b Logit CINC (C)` = c(as.character(nz_2014), pct_2014),
-    `R7b Logit GDP (C)` = c(as.character(nz_2014), pct_2014),
-    `R9 Logit excl. top3` = c(as.character(nz_no_top3), pct_no_top3)
+# --- Table: CFR robustness (R4-R7) ---
+nz_cfr_2020 <- sum(df_cfr_2020$Incident_Count > 0)
+nz_cfr_2016 <- sum(df_cfr_2016$Incident_Count > 0)
+
+rows_cfr <- tibble(
+    term = c("Year FE", "Non-zero obs", "% non-zero", "Total incidents"),
+    `R4 CFR NB (A)` = c(
+        "Yes", as.character(nz_cfr_2020),
+        sprintf("%.2f%%", 100 * nz_cfr_2020 / nrow(df_cfr_2020)),
+        as.character(sum(df_cfr_2020$Incident_Count))
+    ),
+    `R5 CFR NB (B)` = c(
+        "Yes", as.character(nz_cfr_2016),
+        sprintf("%.2f%%", 100 * nz_cfr_2016 / nrow(df_cfr_2016)),
+        as.character(sum(df_cfr_2016$Incident_Count))
+    ),
+    `R6 CFR ZINB (B)` = c(
+        "Yes (count)", as.character(nz_cfr_2016),
+        sprintf("%.2f%%", 100 * nz_cfr_2016 / nrow(df_cfr_2016)),
+        as.character(sum(df_cfr_2016$Incident_Count))
+    ),
+    `R7 CFR ZINB+FE (B)` = c(
+        "Yes (both)", as.character(nz_cfr_2016),
+        sprintf("%.2f%%", 100 * nz_cfr_2016 / nrow(df_cfr_2016)),
+        as.character(sum(df_cfr_2016$Incident_Count))
+    )
 )
-attr(rows_t7, "position") <- c(NA, NA)
+attr(rows_cfr, "position") <- c(NA, NA, NA, NA)
 
 modelsummary(
     list(
-        "R3 Logit+FE" = R3, "R6 Logit CINC (B)" = R6,
-        "R7 Logit GDP (B)" = R7, "R6b Logit CINC (C)" = R6b,
-        "R7b Logit GDP (C)" = R7b, "R9 Logit excl. top3" = R9
+        "R4 CFR NB (A)"      = R4,
+        "R5 CFR NB (B)"      = R5,
+        "R6 CFR ZINB (B)"    = R6,
+        "R7 CFR ZINB+FE (B)" = R7
     ),
-    output = file.path(table_dir, "table7_robustness_logit.html"),
-    coef_map = cm_rob,
-    gof_map = gm_rob,
-    add_rows = rows_t7,
+    output = file.path(table_dir, "table_robustness_cfr.html"),
+    coef_map = cm_cfr,
+    gof_map = gm,
+    add_rows = rows_cfr,
     stars = c("*" = 0.05, "**" = 0.01, "***" = 0.001),
-    title = "Robustness: H2 (Likelihood) — Logit Specifications",
-    notes = "Dyad-clustered SEs. (B) = Panel B, (C) = Panel C (clean). R6b vs R7b is the key diagnostic on the primary panel: CINC absorption should replicate."
+    title = "Robustness Checks on the CFR Data (R4-R7, H1 only)",
+    notes = paste(
+        "Monadic country-year panel from the CFR Cyber Operations Tracker.",
+        "All models include year fixed effects: in the linear predictor for NB",
+        "models (R4, R5); in the count stage for R6; in both stages for R7.",
+        "Country-clustered SEs for NB models; model-based SEs for ZINB models.",
+        "H2 is not tested on CFR (no victim information). R7 is the primary CFR",
+        "specification, mirroring M7 in the DCID main analysis."
+    )
 )
-cat("Saved: outputs/tables/table7_robustness_logit.html\n")
+cat("Saved: outputs/tables/table_robustness_cfr.html\n")
+
+
+################################################################################
+#   EXPLORATORY BLOCK — fitted but NOT tabulated
+################################################################################
+# These models are kept for inspection only and are deliberately excluded from
+# the robustness tables above. They can be deleted without affecting R1-R7.
+#
+#   E1: ZINB top-3 exclusion (Panel C). The two-stage ZINB may not converge
+#       cleanly once the dominant attackers are removed (sparse non-zero
+#       counts) — this is exactly why R2 uses NB. Wrapped in try().
+#   E2: CFR NB top-3 exclusion (Panels A and B). Tests whether the CFR H1
+#       result also survives dropping China, Russia and Iran.
+
+cat("\n\n############################################################\n")
+cat("#  EXPLORATORY BLOCK (not tabulated)                       #\n")
+cat("############################################################\n\n")
+
+# --- E1: ZINB top-3 exclusion (Panel C) ---
+cat("--- E1: ZINB excl. top-3 attackers (Panel C) ---\n\n")
+E1 <- try(
+    zeroinfl(
+        Incident_Count_Clean ~ attacker_w4 + victim_w4 +
+            attacker_cinc + victim_cinc +
+            attacker_ln_gdp_pc + victim_ln_gdp_pc + as.factor(Year) |
+            attacker_cinc + victim_cinc,
+        data = df_2014_no_top3,
+        dist = "negbin"
+    ),
+    silent = TRUE
+)
+if (inherits(E1, "try-error")) {
+    cat("E1 did not converge — confirms the choice of NB for R2.\n")
+} else {
+    e1_count <- coef(E1, "count")
+    e1_count_p <- summary(E1)$coefficients$count[, "Pr(>|z|)"]
+    cat(sprintf(
+        "E1 count stage: attacker_w4 = %.4f, p = %.2e  [H1]\n",
+        e1_count["attacker_w4"], e1_count_p["attacker_w4"]
+    ))
+}
+
+# --- E2: CFR NB top-3 exclusion (Panels A and B) ---
+cat("\n--- E2: CFR NB excl. top-3 attackers ---\n\n")
+df_cfr_2020_no_top3 <- df_cfr_2020 %>% filter(!attacker %in% top3)
+df_cfr_2016_no_top3 <- df_cfr_2016 %>% filter(!attacker %in% top3)
+
+E2a <- try(
+    fenegbin(
+        Incident_Count ~ attacker_w4 + attacker_ln_gdp_pc | Year,
+        data = df_cfr_2020_no_top3, vcov = ~attacker
+    ),
+    silent = TRUE
+)
+if (!inherits(E2a, "try-error")) {
+    cat(sprintf(
+        "E2a CFR NB (A) excl. top-3: attacker_w4 = %.4f, p = %.2e\n",
+        coef(E2a)["attacker_w4"], pvalue(E2a)["attacker_w4"]
+    ))
+}
+
+E2b <- try(
+    fenegbin(
+        Incident_Count ~ attacker_w4 + attacker_cinc + attacker_ln_gdp_pc | Year,
+        data = df_cfr_2016_no_top3, vcov = ~attacker
+    ),
+    silent = TRUE
+)
+if (!inherits(E2b, "try-error")) {
+    cat(sprintf(
+        "E2b CFR NB (B) excl. top-3: attacker_w4 = %.4f, p = %.2e\n",
+        coef(E2b)["attacker_w4"], pvalue(E2b)["attacker_w4"]
+    ))
+}
 
 cat("\nAll robustness tables saved to:", table_dir, "\n")

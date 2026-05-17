@@ -19,10 +19,11 @@
 #   Section 2: Panel B — M2, M3, M4    (full controls + ZINB + MID-augmented)
 #   Section 3: Panel C — M5, M6, M7    (clean DV; M7 is PRIMARY)
 #   Section 4: Summary table (M1-M7)
+#   Section 5: H2 extensive-margin diagnostics (D1, D2)
 #
-# Robustness checks (no-FE versions, logits, MID-any sensitivity, ZINB/NB
-# diagnostics, etc.) live in robustness.R.
-# Poisson vs NB likelihood-ratio test moved to descriptive_statistics.R.
+# Robustness checks (R1-R7: MID-any sensitivity, top-3 exclusion, inflation-
+# stage extension, CFR alternative dataset) live in robustness.R.
+# Poisson vs NB likelihood-ratio test lives in descriptive_statistics.R.
 ################################################################################
 
 rm(list = ls())
@@ -104,6 +105,46 @@ df_2016 <- df_2016 %>%
     mid_force = case_when(
       Year <= 2014 & !is.na(mid_force) ~ 1L,
       Year <= 2014 & is.na(mid_force) ~ 0L,
+      Year > 2014 ~ NA_integer_
+    )
+  )
+
+# --- 0.2b Build MID-any dummy (hostility >= 1) for R1 in robustness.R ---
+# Same construction as mid_force but with the broadest MID threshold (any
+# militarized dispute, not just use of force). Used by the kinetic-conflict
+# sensitivity check R1 — confirms the >=4 threshold in M4/Panel C is not
+# cherry-picked. Coverage ends 2014, so 2015-2016 rows get NA.
+
+mid_any_raw <- df_mid %>%
+  filter(year >= 2007, year <= 2014, hihost >= 1) %>%
+  dplyr::select(statea, stateb, year) %>%
+  distinct()
+
+mid_any_names <- mid_any_raw %>%
+  mutate(
+    att1 = names(cow_name_to_code)[match(statea, cow_name_to_code)],
+    vic1 = names(cow_name_to_code)[match(stateb, cow_name_to_code)],
+    att2 = names(cow_name_to_code)[match(stateb, cow_name_to_code)],
+    vic2 = names(cow_name_to_code)[match(statea, cow_name_to_code)]
+  )
+
+mid_any_directed <- bind_rows(
+  mid_any_names %>%
+    filter(!is.na(att1) & !is.na(vic1)) %>%
+    dplyr::select(attacker = att1, victim = vic1, Year = year),
+  mid_any_names %>%
+    filter(!is.na(att2) & !is.na(vic2)) %>%
+    dplyr::select(attacker = att2, victim = vic2, Year = year)
+) %>%
+  distinct() %>%
+  mutate(mid_any = 1L)
+
+df_2016 <- df_2016 %>%
+  left_join(mid_any_directed, by = c("attacker", "victim", "Year")) %>%
+  mutate(
+    mid_any = case_when(
+      Year <= 2014 & !is.na(mid_any) ~ 1L,
+      Year <= 2014 & is.na(mid_any) ~ 0L,
       Year > 2014 ~ NA_integer_
     )
   )
@@ -527,69 +568,89 @@ cat("Saved: outputs/tables/table_main.html\n")
 
 cat("\nDone. Primary results: read attacker_w4 (H1) and victim_w4 (H2) from M7.\n")
 
-# ---
-# --- M7_inf: M7 with W4 in BOTH inflation and count stages ---
-# Mirrors the count-stage W4 specification in the inflation equation.
-# Yields four W4 coefficients organized as a 2x2:
-#   - count_attacker_w4 = H1 intensive margin (frequency, given attacking)
-#   - count_victim_w4   = H2 intensive margin (frequency, given attackable)
-#   - zero_attacker_w4  = H1 extensive margin (whether ever attacks)
-#   - zero_victim_w4    = H2 extensive margin (whether ever attackable)
-# IMPORTANT: inflation stage models P(structural zero), so signs are FLIPPED
-# relative to count stage. Negative inflation coefficient = MORE likely to
-# be in the active dyad pool.
+################################################################################
+#                 SECTION 5: H2 EXTENSIVE-MARGIN DIAGNOSTICS (D1, D2)
+################################################################################
+# NOT robustness checks. These two logit models support the interpretation of
+# the H2 non-finding in the text: they show that material capability (CINC) and
+# wealth (GDP p.c.), not regime type (victim_w4), drive whether a state is
+# targeted at all. Binary outcome: has_attack_clean (any unprovoked cyber
+# operation received in a dyad-year, yes/no). Both run on Panel C (primary,
+# clean DV) with year FE and dyad-clustered SEs.
+#   D1: CINC-only controls — victim_w4 against a capability-only control.
+#   D2: GDP-only controls  — victim_w4 against a wealth-only control.
+# The robustness checks proper (R1-R7) live in robustness.R.
 
-cat("\n\n--- M7_inf: M7 with W4 added to inflation stage ---\n\n")
+cat("\n\n############################################################\n")
+cat("#  SECTION 5: H2 EXTENSIVE-MARGIN DIAGNOSTICS (D1, D2)     #\n")
+cat("############################################################\n\n")
 
-M7_inf <- zeroinfl(
-  Incident_Count_Clean ~ attacker_w4 + victim_w4 +
-    attacker_cinc + victim_cinc +
-    attacker_ln_gdp_pc + victim_ln_gdp_pc + as.factor(Year) |
-    attacker_w4 + victim_w4 +
-      attacker_cinc + victim_cinc + as.factor(Year),
+df_2014 <- df_2014 %>%
+  mutate(has_attack_clean = as.integer(Incident_Count_Clean > 0))
+
+
+# --- D1: Logit on has_attack_clean, CINC-only controls (Panel C) ---
+cat("--- D1: Logit, CINC-only controls (Panel C) ---\n\n")
+
+D1 <- feglm(
+  has_attack_clean ~ attacker_w4 + victim_w4 +
+    attacker_cinc + victim_cinc | Year,
   data = df_2014,
-  dist = "negbin"
+  family = binomial,
+  vcov = ~directed_dyad_id
 )
-print(summary(M7_inf))
+print(summary(D1))
 
-# Extract the 2x2 of W4 coefficients
-c_coef <- summary(M7_inf)$coefficients$count
-z_coef <- summary(M7_inf)$coefficients$zero
-
-cat("\n--- W4 coefficients across both stages ---\n")
 cat(sprintf(
-  "  Count stage (intensive margin, neg = lower frequency):\n"
-))
-cat(sprintf(
-  "    attacker_w4 = %+.4f, p = %.2e  [H1 intensive]\n",
-  c_coef["attacker_w4", "Estimate"], c_coef["attacker_w4", "Pr(>|z|)"]
-))
-cat(sprintf(
-  "    victim_w4   = %+.4f, p = %.2e  [H2 intensive]\n",
-  c_coef["victim_w4", "Estimate"], c_coef["victim_w4", "Pr(>|z|)"]
-))
-cat(sprintf(
-  "  Zero/inflation stage (extensive margin, NEG = MORE active):\n"
-))
-cat(sprintf(
-  "    attacker_w4 = %+.4f, p = %.2e  [H1 extensive: POSITIVE supports H1]\n",
-  z_coef["attacker_w4", "Estimate"], z_coef["attacker_w4", "Pr(>|z|)"]
-))
-cat(sprintf(
-  "    victim_w4   = %+.4f, p = %.2e  [H2 extensive: NEGATIVE supports H2]\n",
-  z_coef["victim_w4", "Estimate"], z_coef["victim_w4", "Pr(>|z|)"]
+  "\nD1: victim_w4 = %.4f, p = %.2e  [H2 extensive margin]\n",
+  coef(D1)["victim_w4"], pvalue(D1)["victim_w4"]
 ))
 
-# LR test: is M7_inf significantly better than M7?
-ll_diff <- 2 * (as.numeric(logLik(M7_inf)) - as.numeric(logLik(M7)))
-lr_p <- pchisq(ll_diff, df = 2, lower.tail = FALSE)
+
+# --- D2: Logit on has_attack_clean, GDP-only controls (Panel C) ---
+cat("\n\n--- D2: Logit, GDP-only controls (Panel C) ---\n\n")
+
+D2 <- feglm(
+  has_attack_clean ~ attacker_w4 + victim_w4 +
+    attacker_ln_gdp_pc + victim_ln_gdp_pc | Year,
+  data = df_2014,
+  family = binomial,
+  vcov = ~directed_dyad_id
+)
+print(summary(D2))
+
 cat(sprintf(
-  "\nModel comparison (M7 nested in M7_inf):\n"
+  "\nD2: victim_w4 = %.4f, p = %.2e  [H2 extensive margin]\n",
+  coef(D2)["victim_w4"], pvalue(D2)["victim_w4"]
 ))
-cat(sprintf(
-  "  AIC: M7 = %.1f, M7_inf = %.1f, diff = %+.1f (negative favors M7_inf)\n",
-  AIC(M7), AIC(M7_inf), AIC(M7_inf) - AIC(M7)
-))
-cat(sprintf(
-  "  LR test: chi^2(2) = %.2f, p = %.4f\n", ll_diff, lr_p
-))
+
+
+# --- D1/D2 diagnostic table ---
+cm_d <- c(
+  "attacker_w4"        = "Attacker W4 [H1]",
+  "victim_w4"          = "Victim W4 [H2]",
+  "attacker_cinc"      = "Attacker CINC",
+  "victim_cinc"        = "Victim CINC",
+  "attacker_ln_gdp_pc" = "Attacker ln(GDP p.c.)",
+  "victim_ln_gdp_pc"   = "Victim ln(GDP p.c.)"
+)
+
+modelsummary(
+  list(
+    "D1: Logit, CINC only" = D1,
+    "D2: Logit, GDP only"  = D2
+  ),
+  output = file.path(table_dir, "table_h2_diag.html"),
+  coef_map = cm_d,
+  gof_map = gm,
+  stars = c("*" = 0.05, "**" = 0.01, "***" = 0.001),
+  title = "H2 Extensive-Margin Diagnostics: Logit on Any Cyber Operation Received (Panel C)",
+  notes = paste(
+    "Outcome: has_attack_clean (any unprovoked cyber operation received in a",
+    "dyad-year, yes/no). Panel C (clean DV, 2007-2014). Year fixed effects;",
+    "dyad-clustered SEs. These are interpretive diagnostics for the H2",
+    "non-finding, not robustness checks: they show victim W4 does not predict",
+    "target selection once capability (CINC) or wealth (GDP p.c.) is controlled."
+  )
+)
+cat("Saved: outputs/tables/table_h2_diag.html\n")

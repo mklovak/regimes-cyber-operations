@@ -6,12 +6,15 @@
 data_preparation.R       →  builds df_model_2020.csv, df_model_2016.csv, df_model_2014.csv
 data_preparation_cfr.R   →  builds df_attacker_2020.csv, df_attacker_2016.csv (CFR robustness)
 descriptive_statistics.R →  diagnostics, correlations, Poisson vs NB likelihood-ratio test
-models.R                 →  primary models M1–M7
-models_cfr.R             →  CFR robustness models (M1–M4 monadic)
-robustness.R             →  no-FE, logit, MID-any, top-3 exclusion, M7_inf  [⚠ pending update]
+models.R                 →  primary models M1–M7; H2 diagnostics D1–D2
+robustness.R             →  robustness checks R1–R7 (MID-any, top-3 exclusion,
+                            inflation-stage extension, CFR alternative dataset)
 ```
 
-> **Note**: `robustness.R` has not yet been updated to match the restructured M1–M7 numbering and the new R-block scheme. The current file still uses the older M1–M13 numbering and will be revised in a follow-up commit.
+> **Model families**: `M1–M7` are the primary models (DCID dyadic). `D1–D2` are
+> H2 extensive-margin diagnostics (not robustness). `R1–R7` are the robustness
+> checks. The Poisson vs NB likelihood-ratio test lives in `descriptive_statistics.R`.
+> The CFR analysis is now integrated into `robustness.R` as R4–R7.
 
 ## Project Structure
 
@@ -43,7 +46,6 @@ robustness.R             →  no-FE, logit, MID-any, top-3 exclusion, M7_inf  [�
 ├── data_preparation.R                                  # DCID pipeline: raw sources → df_model_*.csv
 ├── data_preparation_cfr.R                              # CFR pipeline: raw sources → df_attacker_*.csv
 ├── descriptive_statistics.R                            # Descriptive statistics, diagnostics, correlations, Poisson/NB LR test
-├── models.R                                            # Primary models M1–M7 (DCID)
-├── models_cfr.R                                        # CFR robustness models M1–M4
-└── robustness.R                                        # Robustness checks (no-FE, logit, MID-any, top-3 exclusion, M7_inf)  [⚠ pending update]
+├── models.R                                            # Primary models M1–M7 + H2 diagnostics D1–D2 (DCID)
+└── robustness.R                                        # Robustness checks R1–R7 (MID-any, top-3 exclusion, inflation-stage extension, CFR)
 ```

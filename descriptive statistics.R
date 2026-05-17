@@ -259,6 +259,36 @@ df_2020 %>%
   count(Incident_Count, name = "Dyad_Years") %>%
   print(n = Inf)
 
+# --- 2.1b Poisson vs Negative Binomial likelihood-ratio test ---
+# Formal test of the overdispersion noted above. The Poisson model constrains
+# variance = mean; the NB model adds a dispersion parameter. The two are nested,
+# so 2*(logLik_NB - logLik_Poisson) is chi-squared with 1 df. A large statistic
+# rejects Poisson and justifies the Negative Binomial estimator used in all
+# count models (M1-M7 in models.R). Run on Panel A (broadest panel).
+cat("\n--- Poisson vs NB Likelihood-Ratio Test (df_2020) ---\n")
+
+pois_fit <- glm(
+  Incident_Count ~ attacker_w4 + victim_w4 +
+    attacker_ln_gdp_pc + victim_ln_gdp_pc,
+  data = df_2020, family = poisson
+)
+
+nb_fit <- MASS::glm.nb(
+  Incident_Count ~ attacker_w4 + victim_w4 +
+    attacker_ln_gdp_pc + victim_ln_gdp_pc,
+  data = df_2020, control = glm.control(maxit = 500)
+)
+
+lr_stat <- 2 * (logLik(nb_fit) - logLik(pois_fit))
+lr_pval <- pchisq(as.numeric(lr_stat), df = 1, lower.tail = FALSE)
+
+cat(sprintf("Poisson log-lik: %.1f\n", logLik(pois_fit)))
+cat(sprintf("NB log-lik:      %.1f\n", logLik(nb_fit)))
+cat(sprintf("LR statistic:    %.1f\n", lr_stat))
+cat(sprintf("p-value:         %.2e\n", lr_pval))
+cat(sprintf("NB theta:        %.6f\n", nb_fit$theta))
+cat("Conclusion: Poisson rejected. Severe overdispersion confirms NB.\n\n")
+
 # --- 2.2 Independent variable: W4 (Winning Coalition Index) ---
 # Type: continuous
 # Level of measurement: ratio (0 = smallest coalition, 1 = largest)

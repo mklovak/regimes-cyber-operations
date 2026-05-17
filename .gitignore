@@ -9,3 +9,5 @@
 
 # OS specific
 .DS_Store
+# R run artifacts
+Rplots.pdf
