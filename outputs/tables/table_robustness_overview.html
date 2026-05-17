@@ -1,0 +1,112 @@
+<!-- preamble start -->
+<!DOCTYPE html> 
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tinytable_s4kwi7akewj4ywk9cm10</title>
+    
+  </head>
+  <body>
+<!-- preamble end -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script>
+
+    <script>
+      // Create table-specific functions using external factory
+      const tableFns_s4kwi7akewj4ywk9cm10 = TinyTable.createTableFunctions("tinytable_s4kwi7akewj4ywk9cm10");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '7', j: 1 }, { i: '7', j: 2 }, { i: '7', j: 3 }, { i: '7', j: 4 }, { i: '7', j: 5 } ], css_id: 'tinytable_css_rga3v4yd3v20a25377g5',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_t4tlr7xfw5lqpnri1mls',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_s4kwi7akewj4ywk9cm10.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+    <style>
+    /* tinytable css entries after */
+    #tinytable_s4kwi7akewj4ywk9cm10 td.tinytable_css_rga3v4yd3v20a25377g5, #tinytable_s4kwi7akewj4ywk9cm10 th.tinytable_css_rga3v4yd3v20a25377g5 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_s4kwi7akewj4ywk9cm10 td.tinytable_css_t4tlr7xfw5lqpnri1mls, #tinytable_s4kwi7akewj4ywk9cm10 th.tinytable_css_t4tlr7xfw5lqpnri1mls {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    </style>
+    <div class="container">
+      <table class="tinytable" id="tinytable_s4kwi7akewj4ywk9cm10" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing='true'>
+        <caption>Robustness Models Overview (R1-R7)</caption>
+        <thead>
+              <tr>
+                <th scope="col" data-row="0" data-col="1">Model</th>
+                <th scope="col" data-row="0" data-col="2">Category</th>
+                <th scope="col" data-row="0" data-col="3">Estimator</th>
+                <th scope="col" data-row="0" data-col="4">Panel</th>
+                <th scope="col" data-row="0" data-col="5">Specification</th>
+              </tr>
+        </thead>
+        
+        <tbody>
+                <tr>
+                  <td data-row="1" data-col="1">R1</td>
+                  <td data-row="1" data-col="2">Kinetic-conflict sensitivity</td>
+                  <td data-row="1" data-col="3">NB</td>
+                  <td data-row="1" data-col="4">B (2007-2014)</td>
+                  <td data-row="1" data-col="5">M2 + MID at any hostility (>=1)</td>
+                </tr>
+                <tr>
+                  <td data-row="2" data-col="1">R2</td>
+                  <td data-row="2" data-col="2">Dominant-attacker exclusion</td>
+                  <td data-row="2" data-col="3">NB</td>
+                  <td data-row="2" data-col="4">C (2007-2014)</td>
+                  <td data-row="2" data-col="5">M5 excluding China, Russia, Iran</td>
+                </tr>
+                <tr>
+                  <td data-row="3" data-col="1">R3</td>
+                  <td data-row="3" data-col="2">Inflation-stage extension</td>
+                  <td data-row="3" data-col="3">ZINB</td>
+                  <td data-row="3" data-col="4">C (2007-2014)</td>
+                  <td data-row="3" data-col="5">M7 + W4 added to the inflation stage</td>
+                </tr>
+                <tr>
+                  <td data-row="4" data-col="1">R4</td>
+                  <td data-row="4" data-col="2">CFR alternative dataset</td>
+                  <td data-row="4" data-col="3">NB</td>
+                  <td data-row="4" data-col="4">CFR A (2007-2020)</td>
+                  <td data-row="4" data-col="5">Monadic; W4 + GDP; year FE</td>
+                </tr>
+                <tr>
+                  <td data-row="5" data-col="1">R5</td>
+                  <td data-row="5" data-col="2">CFR alternative dataset</td>
+                  <td data-row="5" data-col="3">NB</td>
+                  <td data-row="5" data-col="4">CFR B (2007-2016)</td>
+                  <td data-row="5" data-col="5">Monadic; W4 + CINC + GDP; year FE</td>
+                </tr>
+                <tr>
+                  <td data-row="6" data-col="1">R6</td>
+                  <td data-row="6" data-col="2">CFR alternative dataset</td>
+                  <td data-row="6" data-col="3">ZINB</td>
+                  <td data-row="6" data-col="4">CFR B (2007-2016)</td>
+                  <td data-row="6" data-col="5">Monadic ZINB; year FE in count stage</td>
+                </tr>
+                <tr>
+                  <td data-row="7" data-col="1">R7</td>
+                  <td data-row="7" data-col="2">CFR alternative dataset</td>
+                  <td data-row="7" data-col="3">ZINB+FE</td>
+                  <td data-row="7" data-col="4">CFR B (2007-2016)</td>
+                  <td data-row="7" data-col="5">Monadic ZINB; year FE in both stages (primary CFR)</td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- postamble start -->
+  </body>
+
+</html>
+<!-- postamble end -->
+<!-- hack to avoid NA insertion in last line -->
