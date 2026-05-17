@@ -3,7 +3,7 @@
 # Robustness checks R1-R6
 #
 # This script is STANDALONE: it loads the panels itself and fits R1-R6
-# independently of models.R. Run order: data preparation.R ->
+# independently of models.R. Run order: data_preparation.R ->
 # data_preparation_cfr.R -> descriptive statistics.R -> models.R -> robustness.R
 #
 # A robustness check confronts the finding with something EXTERNAL — different
