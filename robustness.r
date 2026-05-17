@@ -19,9 +19,12 @@
 #
 #   Category 5 — Inflation-stage extension
 #     R3: ZINB with W4 added to the inflation stage, Panel C (extends M7)
-#         Reported as robustness, not a primary model, because adding W4 to
-#         the inflation stage destabilises the CINC coefficients
-#         (multicollinearity between W4 and CINC in the structural-zero stage).
+#         M7 puts W4 only in the count stage; R3 also puts it in the inflation
+#         stage. H1 is robust to this — the count-stage attacker_w4 stays
+#         strongly negative and AIC even improves over M7. M7 remains the
+#         primary model on theoretical grounds (it cleanly assigns capability
+#         /CINC to the structural-zero stage and regime type/W4 to the
+#         behavioural count stage), not because R3 fails or is unstable.
 #
 #   CFR — Alternative dataset (the substantive robustness check)
 #     R4: CFR NB, Panel A (monadic, W4 + GDP)
@@ -215,10 +218,12 @@ cat(sprintf(
 ################################################################################
 #   R3: ZINB with W4 in the inflation stage (Panel C) — extends M7
 ################################################################################
-# M7 puts only CINC in the inflation stage. R3 adds W4 to the inflation stage
-# as well, mirroring the count-stage specification. Reported as robustness,
-# not a primary model: adding W4 to the inflation stage destabilises the CINC
-# coefficients (W4 and CINC are collinear in the structural-zero stage).
+# M7 puts only CINC in the inflation stage. R3 adds W4 there too, mirroring the
+# count-stage specification. H1 is robust to this: the count-stage attacker_w4
+# stays strongly negative (and AIC improves over M7). M7 remains the primary
+# model on theoretical grounds — it cleanly assigns capability (CINC) to the
+# structural-zero/inflation stage and regime type (W4) to the behavioural
+# count stage — not because R3 fails or is unstable.
 # Inflation-stage signs are FLIPPED relative to the count stage — the
 # inflation stage models P(structural zero).
 
