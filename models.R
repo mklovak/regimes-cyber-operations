@@ -19,10 +19,10 @@
 #   Section 2: Panel B — M2, M3, M4    (full controls + ZINB + MID-augmented)
 #   Section 3: Panel C — M5, M6, M7    (clean DV; M7 is PRIMARY)
 #   Section 4: Summary table (M1-M7)
-#   Section 5: H2 extensive-margin diagnostics (D1, D2)
+#   Section 5: Diagnostics (D1-D3)
 #
-# Robustness checks (R1-R7: MID-any sensitivity, top-3 exclusion, inflation-
-# stage extension, CFR alternative dataset) live in robustness.R.
+# Robustness checks (R1-R6: MID-any sensitivity, top-3 exclusion, CFR
+# alternative dataset) live in robustness.R.
 # Poisson vs NB likelihood-ratio test lives in descriptive_statistics.R.
 ################################################################################
 
@@ -35,6 +35,7 @@ library(readxl)
 library(fixest) # NB with year FE and dyad-clustered SEs
 library(pscl) # ZINB via zeroinfl()
 library(modelsummary) # HTML table export
+library(tinytable) # small custom tables (D3)
 
 # setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
@@ -569,20 +570,26 @@ cat("Saved: outputs/tables/table_main.html\n")
 cat("\nDone. Primary results: read attacker_w4 (H1) and victim_w4 (H2) from M7.\n")
 
 ################################################################################
-#                 SECTION 5: H2 EXTENSIVE-MARGIN DIAGNOSTICS (D1, D2)
+#                 SECTION 5: DIAGNOSTICS (D1-D3)
 ################################################################################
-# NOT robustness checks. These two logit models support the interpretation of
-# the H2 non-finding in the text: they show that material capability (CINC) and
-# wealth (GDP p.c.), not regime type (victim_w4), drive whether a state is
-# targeted at all. Binary outcome: has_attack_clean (any unprovoked cyber
-# operation received in a dyad-year, yes/no). Both run on Panel C (primary,
-# clean DV) with year FE and dyad-clustered SEs.
-#   D1: CINC-only controls — victim_w4 against a capability-only control.
-#   D2: GDP-only controls  — victim_w4 against a wealth-only control.
-# The robustness checks proper (R1-R7) live in robustness.R.
+# NOT robustness checks — these models probe specification choices and support
+# interpretations in the text; they do not confront the finding with external
+# data, controls or samples (that is what R1-R6 in robustness.R do).
+#
+# D1, D2 — H2 extensive-margin diagnostics. Two logit models on has_attack_clean
+#   (any unprovoked cyber operation received in a dyad-year, yes/no), Panel C,
+#   year FE, dyad-clustered SEs. They show whether victim regime type predicts
+#   target selection once capability (CINC) or wealth (GDP p.c.) is controlled.
+#     D1: CINC-only controls.   D2: GDP-only controls.
+#
+# D3 — M7 specification diagnostic. Re-estimates M7 with W4 added to the
+#   inflation stage as well as the count stage, to confirm the H1/H2
+#   conclusions do not depend on M7's stage-placement choice.
+#
+# The robustness checks proper (R1-R6) live in robustness.R.
 
 cat("\n\n############################################################\n")
-cat("#  SECTION 5: H2 EXTENSIVE-MARGIN DIAGNOSTICS (D1, D2)     #\n")
+cat("#  SECTION 5: DIAGNOSTICS (D1-D3)                          #\n")
 cat("############################################################\n\n")
 
 df_2014 <- df_2014 %>%
@@ -654,3 +661,81 @@ modelsummary(
   )
 )
 cat("Saved: outputs/tables/table_h2_diag.html\n")
+
+
+# --- D3: M7 specification diagnostic — W4 in both ZINB stages ---
+# M7 places W4 in the count stage only. D3 re-estimates M7 with W4 added to the
+# inflation stage as well, and checks whether the H1/H2 conclusions change.
+# This diagnoses the M7 stage-placement choice; it is not a robustness check
+# (it changes no data, controls or sample — only M7's internal specification).
+# Inflation-stage signs are FLIPPED relative to the count stage: the inflation
+# stage models P(structural zero), so a negative coefficient = more likely to
+# be in the active dyad pool.
+
+cat("\n\n--- D3: M7 diagnostic — W4 in both ZINB stages ---\n\n")
+
+D3 <- zeroinfl(
+  Incident_Count_Clean ~ attacker_w4 + victim_w4 +
+    attacker_cinc + victim_cinc +
+    attacker_ln_gdp_pc + victim_ln_gdp_pc + as.factor(Year) |
+    attacker_w4 + victim_w4 +
+      attacker_cinc + victim_cinc + as.factor(Year),
+  data = df_2014,
+  dist = "negbin"
+)
+print(summary(D3))
+
+d3_c <- coef(D3, "count")
+d3_z <- coef(D3, "zero")
+d3_cp <- summary(D3)$coefficients$count[, "Pr(>|z|)"]
+d3_zp <- summary(D3)$coefficients$zero[, "Pr(>|z|)"]
+
+cat(sprintf(
+  "\nD3 count stage:     attacker_w4 = %+.4f (p = %.2e)  victim_w4 = %+.4f (p = %.2e)\n",
+  d3_c["attacker_w4"], d3_cp["attacker_w4"],
+  d3_c["victim_w4"], d3_cp["victim_w4"]
+))
+cat(sprintf(
+  "D3 inflation stage: attacker_w4 = %+.4f (p = %.2e)  victim_w4 = %+.4f (p = %.2e)\n",
+  d3_z["attacker_w4"], d3_zp["attacker_w4"],
+  d3_z["victim_w4"], d3_zp["victim_w4"]
+))
+cat(sprintf(
+  "AIC: M7 = %.1f, D3 = %.1f (lower = better fit)\n",
+  AIC(M7), AIC(D3)
+))
+
+# --- D3 table: 2x2 of W4 coefficients across both ZINB stages ---
+d3_star <- function(p) {
+  if (p < 0.001) {
+    "***"
+  } else if (p < 0.01) {
+    "**"
+  } else if (p < 0.05) {
+    "*"
+  } else {
+    ""
+  }
+}
+d3_fmt <- function(b, p) sprintf("%.3f%s (p = %.3f)", b, d3_star(p), p)
+
+d3_tbl <- tibble(
+  Coefficient = c("Attacker W4 [H1]", "Victim W4 [H2]"),
+  `Count stage (frequency)` = c(
+    d3_fmt(d3_c["attacker_w4"], d3_cp["attacker_w4"]),
+    d3_fmt(d3_c["victim_w4"], d3_cp["victim_w4"])
+  ),
+  `Inflation stage (structural zero)` = c(
+    d3_fmt(d3_z["attacker_w4"], d3_zp["attacker_w4"]),
+    d3_fmt(d3_z["victim_w4"], d3_zp["victim_w4"])
+  )
+)
+
+tt(d3_tbl,
+  caption = paste(
+    "D3: Winning Coalition Index in Both ZINB Stages",
+    "(M7 specification diagnostic, Panel C)"
+  )
+) %>%
+  save_tt(file.path(table_dir, "table_d3.html"), overwrite = TRUE)
+cat("Saved: outputs/tables/table_d3.html\n")
