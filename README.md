@@ -33,7 +33,7 @@ robustness.R             →  robustness checks R1–R7 (MID-any, top-3 exclusio
 │   ├── Individuals using the Internet.csv              # ITU, Internet Penetration (Taiwan)
 │   └── 3d38d8b0-..._Data.csv                           # World Bank, Internet Penetration (unused — collinear with GDP per capita, r = 0.85)
 │
-├── outputs/                                            # Generated outputs (not committed)
+├── outputs/                                            # Generated outputs (committed so reviewers can download tables and plots)
 │   ├── df_model_2020.csv                               # DCID Panel A: 2007–2020, W4 + ln(GDP per capita)
 │   ├── df_model_2016.csv                               # DCID Panel B: 2007–2016, W4 + CINC + ln(GDP per capita)
 │   ├── df_model_2014.csv                               # DCID Panel C: 2007–2014, clean DV (kinetic-conflict-free)
