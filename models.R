@@ -567,6 +567,75 @@ modelsummary(
 )
 cat("Saved: outputs/tables/table_main.html\n")
 
+
+# --- Coefficient forest plot: W4 across M1-M7 (H1 and H2) ---
+# Visualises the winning-coalition coefficients with 95% confidence intervals
+# across all seven main models. H1 (attacker_w4) and H2 (victim_w4) are shown
+# together so the contrast is immediate: H1 points sit below zero, H2 points
+# straddle it. NB models use dyad-clustered SEs; ZINB models show count-stage
+# coefficients with model-based SEs.
+
+plot_dir <- "outputs/plots"
+if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
+
+# Estimate + 95% CI for a term, from an NB (fixest) or ZINB (zeroinfl) model.
+get_coef_ci <- function(model, term) {
+  if (inherits(model, "fixest")) {
+    est <- unname(coef(model)[term])
+    se_ <- unname(se(model)[term])
+  } else {
+    cs <- summary(model)$coefficients$count
+    est <- unname(cs[term, "Estimate"])
+    se_ <- unname(cs[term, "Std. Error"])
+  }
+  c(estimate = est, conf.low = est - 1.96 * se_, conf.high = est + 1.96 * se_)
+}
+
+main_models <- list(
+  "M1 NB (A)" = M1, "M2 NB (B)" = M2, "M3 ZINB (B)" = M3,
+  "M4 NB+MID (B)" = M4, "M5 NB (C)" = M5, "M6 ZINB (C)" = M6,
+  "M7 ZINB+FE (C)" = M7
+)
+
+coef_df <- bind_rows(lapply(names(main_models), function(nm) {
+  m <- main_models[[nm]]
+  a <- get_coef_ci(m, "attacker_w4")
+  v <- get_coef_ci(m, "victim_w4")
+  tibble(
+    model = nm,
+    hypothesis = c("H1: Attacker W4", "H2: Victim W4"),
+    estimate = c(a[["estimate"]], v[["estimate"]]),
+    conf.low = c(a[["conf.low"]], v[["conf.low"]]),
+    conf.high = c(a[["conf.high"]], v[["conf.high"]])
+  )
+})) %>%
+  mutate(model = factor(model, levels = rev(names(main_models))))
+
+p_forest <- ggplot(coef_df, aes(x = estimate, y = model, color = hypothesis)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+    position = position_dodge(width = 0.55), linewidth = 0.7, size = 0.5
+  ) +
+  scale_color_manual(values = c(
+    "H1: Attacker W4" = "#1D3557", "H2: Victim W4" = "#E63946"
+  )) +
+  labs(
+    title = "Winning Coalition Coefficients Across the Seven Main Models",
+    subtitle = paste0(
+      "Points are coefficient estimates; bars are 95% confidence intervals.\n",
+      "ZINB models (M3, M6, M7) show count-stage coefficients."
+    ),
+    x = "Coefficient (log incidence-rate ratio)", y = NULL, color = NULL
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+ggsave(file.path(plot_dir, "14_forest_main_models.png"),
+  p_forest,
+  width = 9, height = 5.5
+)
+cat("Saved: outputs/plots/14_forest_main_models.png\n")
+
 cat("\nDone. Primary results: read attacker_w4 (H1) and victim_w4 (H2) from M7.\n")
 
 ################################################################################
