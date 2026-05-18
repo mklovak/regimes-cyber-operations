@@ -1,3 +1,4 @@
+# Developed with the assistance of Claude AI (Anthropic)
 ##################### Environment Setup ########################################
 rm(list = ls())
 try(dev.off(), silent = TRUE)
@@ -384,7 +385,7 @@ p <- ggplot() +
   theme_minimal() +
   theme(legend.position = "bottom")
 print(p)
-ggsave(file.path(plot_dir, "4_w4_density_2020.png"), p, width = 10, height = 6)
+ggsave(file.path(plot_dir, "Graph_1.png"), p, width = 10, height = 6)
 
 # Plot 2 (supplementary): Overlapping histograms — % within each group
 df_w4_combined <- bind_rows(
@@ -1355,7 +1356,7 @@ p <- ggplot(count_dist, aes(x = factor(Incident_Count), y = dyad_years)) +
   ) +
   theme_minimal()
 print(p)
-ggsave(file.path(plot_dir, "dyad_count_distribution.png"), p, width = 9, height = 5.5)
+ggsave(file.path(plot_dir, "Graph_2.png"), p, width = 9, height = 5.5)
 
 # --- Most active directed dyads (Panel A) ---
 # The directed-dyad unit of observation: which attacker -> victim pairs
@@ -1378,7 +1379,7 @@ p <- df_2020 %>%
   theme(panel.grid.major.y = element_blank()) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.12)))
 print(p)
-ggsave(file.path(plot_dir, "top_dyads.png"), p, width = 9, height = 5.5)
+ggsave(file.path(plot_dir, "Graph_3.png"), p, width = 9, height = 5.5)
 
 
 cat("\nPlots saved to:", plot_dir, "\n")

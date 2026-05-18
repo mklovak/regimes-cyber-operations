@@ -1,3 +1,4 @@
+# Developed with the assistance of Claude AI (Anthropic)
 ##################### data_preparation_cfr.R ##################################
 # Robustness panel construction for H1, based on the CFR Cyber Operations
 # Tracker (Council on Foreign Relations) instead of DCID 2.0.
