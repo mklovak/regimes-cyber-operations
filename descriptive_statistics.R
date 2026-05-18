@@ -1328,4 +1328,57 @@ cat("This motivates the ZINB specification: CINC in the inflation stage\n")
 cat("(structural zeros from incapable states), W4 in the count stage\n")
 cat("(behavioral variation among capable states).\n")
 
+################################################################################
+#                 PART 13: DYAD-YEAR STRUCTURE PLOTS
+################################################################################
+
+# --- Distribution of cyber operations per directed dyad-year (Panel A) ---
+# Visualises the extreme zero-inflation that motivates the NB/ZINB estimators.
+# Log10 y-axis so the ~412k zero dyad-years and the handful of high counts are
+# both legible on one scale.
+count_dist <- df_2020 %>%
+  count(Incident_Count, name = "dyad_years")
+
+p <- ggplot(count_dist, aes(x = factor(Incident_Count), y = dyad_years)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = dyad_years), vjust = -0.4, size = 3) +
+  scale_y_log10(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Distribution of Cyber Operations per Directed Dyad-Year (Panel A)",
+    subtitle = paste0(
+      round(mean(df_2020$Incident_Count == 0) * 100, 2),
+      "% of directed dyad-years record zero operations — the excess-zero\n",
+      "structure that motivates the zero-inflated model."
+    ),
+    x = "Cyber operations in a dyad-year",
+    y = "Number of dyad-years (log scale)"
+  ) +
+  theme_minimal()
+print(p)
+ggsave(file.path(plot_dir, "dyad_count_distribution.png"), p, width = 9, height = 5.5)
+
+# --- Most active directed dyads (Panel A) ---
+# The directed-dyad unit of observation: which attacker -> victim pairs
+# account for the observed operations.
+p <- df_2020 %>%
+  group_by(attacker, victim) %>%
+  summarise(total = sum(Incident_Count), .groups = "drop") %>%
+  filter(total > 0) %>%
+  slice_max(total, n = 12) %>%
+  mutate(dyad = paste0(attacker, " → ", victim)) %>%
+  ggplot(aes(x = total, y = reorder(dyad, total))) +
+  geom_col(fill = "#1D3557") +
+  geom_text(aes(label = total), hjust = -0.3, size = 3.3) +
+  labs(
+    title = "Most Active Directed Dyads (Panel A, 2007-2020)",
+    subtitle = "Total cyber operations by attacker → victim pair.",
+    x = "Total cyber operations", y = NULL
+  ) +
+  theme_minimal() +
+  theme(panel.grid.major.y = element_blank()) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.12)))
+print(p)
+ggsave(file.path(plot_dir, "top_dyads.png"), p, width = 9, height = 5.5)
+
+
 cat("\nPlots saved to:", plot_dir, "\n")
