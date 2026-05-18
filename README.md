@@ -1,3 +1,5 @@
+_Developed with the assistance of Claude AI (Anthropic)._
+
 # Project Structure
 
 ## Data Pipeline (run in the following order)

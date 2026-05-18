@@ -1,3 +1,4 @@
+# Developed with the assistance of Claude AI (Anthropic)
 ##################### Environment Setup ########################################
 rm(list = ls())
 try(dev.off(), silent = TRUE)

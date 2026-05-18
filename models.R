@@ -1,3 +1,4 @@
+# Developed with the assistance of Claude AI (Anthropic)
 ##################### models.R #################################################
 # Political Regimes and State-Level Cyber Aggression
 #
@@ -549,7 +550,7 @@ modelsummary(
     "M6 ZINB (C)"    = M6,
     "M7 ZINB+FE (C)" = M7
   ),
-  output = file.path(table_dir, "table_main.html"),
+  output = file.path(table_dir, "Table_5.html"),
   coef_map = cm,
   gof_map = gm,
   add_rows = rows_main,
@@ -565,7 +566,7 @@ modelsummary(
     "H2 (read victim_w4). M7 is the primary specification."
   )
 )
-cat("Saved: outputs/tables/table_main.html\n")
+cat("Saved: outputs/tables/Table_5.html\n")
 
 
 # --- Coefficient forest plot: W4 across M1-M7 (H1 and H2) ---
@@ -630,11 +631,11 @@ p_forest <- ggplot(coef_df, aes(x = estimate, y = model, color = hypothesis)) +
   theme_minimal() +
   theme(legend.position = "bottom")
 
-ggsave(file.path(plot_dir, "14_forest_main_models.png"),
+ggsave(file.path(plot_dir, "Graph_4.png"),
   p_forest,
   width = 9, height = 5.5
 )
-cat("Saved: outputs/plots/14_forest_main_models.png\n")
+cat("Saved: outputs/plots/Graph_4.png\n")
 
 cat("\nDone. Primary results: read attacker_w4 (H1) and victim_w4 (H2) from M7.\n")
 

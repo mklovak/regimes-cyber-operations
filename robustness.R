@@ -1,3 +1,4 @@
+# Developed with the assistance of Claude AI (Anthropic)
 ##################### robustness.R #############################################
 # Political Regimes and State-Level Cyber Aggression
 # Robustness checks R1-R6
@@ -381,8 +382,8 @@ overview <- tibble(
 tt(overview,
     caption = "Robustness Models Overview (R1-R6)"
 ) %>%
-    save_tt(file.path(table_dir, "table_robustness_overview.html"), overwrite = TRUE)
-cat("Saved: outputs/tables/table_robustness_overview.html\n")
+    save_tt(file.path(table_dir, "Table_6.html"), overwrite = TRUE)
+cat("Saved: outputs/tables/Table_6.html\n")
 
 
 # --- Coefficient maps & GOF ---
@@ -441,7 +442,7 @@ modelsummary(
         "R1 NB+MID-any (B)"     = R1,
         "R2 NB excl. top-3 (C)" = R2
     ),
-    output = file.path(table_dir, "table_robustness_dcid.html"),
+    output = file.path(table_dir, "Table_7.html"),
     coef_map = cm_dcid,
     gof_map = gm,
     add_rows = rows_dcid,
@@ -454,7 +455,7 @@ modelsummary(
         "H2 (victim_w4)."
     )
 )
-cat("Saved: outputs/tables/table_robustness_dcid.html\n")
+cat("Saved: outputs/tables/Table_7.html\n")
 
 
 # --- Table: CFR robustness (R3-R6) ---
@@ -493,7 +494,7 @@ modelsummary(
         "R5 CFR ZINB (B)"    = R5,
         "R6 CFR ZINB+FE (B)" = R6
     ),
-    output = file.path(table_dir, "table_robustness_cfr.html"),
+    output = file.path(table_dir, "Table_8.html"),
     coef_map = cm_cfr,
     gof_map = gm,
     add_rows = rows_cfr,
@@ -508,7 +509,7 @@ modelsummary(
         "specification, mirroring M7 in the DCID main analysis."
     )
 )
-cat("Saved: outputs/tables/table_robustness_cfr.html\n")
+cat("Saved: outputs/tables/Table_8.html\n")
 
 
 ################################################################################
