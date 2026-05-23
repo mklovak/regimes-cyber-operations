@@ -2,8 +2,9 @@
 ##################### models.R #################################################
 # Political Regimes and State-Level Cyber Aggression
 #
-# Hypotheses (revised):
-#   H0: Winning coalition index does not affect state-backed cyber operations.
+# Hypotheses:
+#   H0: Winning coalition index does not affect unprovoked state-backed cyber
+#       operations.
 #   H1: The larger the winning coalition index, the lower the frequency of
 #       conducting unprovoked state-backed cyber operations.
 #       Operationalization: read attacker_w4 across M1-M7.
