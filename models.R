@@ -38,6 +38,38 @@ library(pscl) # ZINB via zeroinfl()
 library(modelsummary) # HTML table export
 library(tinytable) # small custom tables (D3)
 
+# --- Thesis-ready figures: Cambria 13pt, line height 1.5 -----------------------
+# Cambria ships inside the Microsoft Word app bundle on macOS; register the
+# files with showtext so Graph_4.png embeds Cambria. Falls back to sans if
+# Cambria is unavailable.
+cambria_dir <- "/Applications/Microsoft Word.app/Contents/Resources/DFonts"
+if (file.exists(file.path(cambria_dir, "Cambria.ttc"))) {
+  library(showtext)
+  sysfonts::font_add(
+    "Cambria",
+    regular    = file.path(cambria_dir, "Cambria.ttc"),
+    bold       = file.path(cambria_dir, "Cambriab.ttf"),
+    italic     = file.path(cambria_dir, "Cambriai.ttf"),
+    bolditalic = file.path(cambria_dir, "Cambriaz.ttf")
+  )
+  showtext::showtext_auto()
+  showtext::showtext_opts(dpi = 300)
+  thesis_family <- "Cambria"
+} else {
+  thesis_family <- "sans"
+}
+
+# Theme used for the forest plot Graph_4.
+thesis_theme <- ggplot2::theme_minimal(base_family = thesis_family, base_size = 13) +
+  ggplot2::theme(
+    text          = ggplot2::element_text(family = thesis_family, size = 13, lineheight = 1.5),
+    axis.text     = ggplot2::element_text(size = 13),
+    axis.title    = ggplot2::element_text(size = 13),
+    plot.subtitle = ggplot2::element_text(size = 13),
+    legend.text   = ggplot2::element_text(size = 13),
+    legend.title  = ggplot2::element_text(size = 13)
+  )
+
 # setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 
@@ -621,14 +653,13 @@ p_forest <- ggplot(coef_df, aes(x = estimate, y = model, color = hypothesis)) +
     "H1: Attacker W4" = "#1D3557", "H2: Victim W4" = "#E63946"
   )) +
   labs(
-    title = "Winning Coalition Coefficients Across the Seven Main Models",
     subtitle = paste0(
       "Points are coefficient estimates; bars are 95% confidence intervals.\n",
       "ZINB models (M3, M6, M7) show count-stage coefficients."
     ),
     x = "Coefficient (log incidence-rate ratio)", y = NULL, color = NULL
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(legend.position = "bottom")
 
 ggsave(file.path(plot_dir, "Graph_4.png"),
