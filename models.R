@@ -653,6 +653,7 @@ p_forest <- ggplot(coef_df, aes(x = estimate, y = model, color = hypothesis)) +
     "H1: Attacker W4" = "#1D3557", "H2: Victim W4" = "#E63946"
   )) +
   labs(
+    title = "Winning Coalition Coefficients Across the Seven Main Models",
     subtitle = paste0(
       "Points are coefficient estimates; bars are 95% confidence intervals.\n",
       "ZINB models (M3, M6, M7) show count-stage coefficients."
@@ -662,11 +663,15 @@ p_forest <- ggplot(coef_df, aes(x = estimate, y = model, color = hypothesis)) +
   thesis_theme +
   theme(legend.position = "bottom")
 
-ggsave(file.path(plot_dir, "Graph_4.png"),
+ggsave(file.path(plot_dir, "Graph_4_with_titles.png"),
   p_forest,
   width = 9, height = 5.5
 )
-cat("Saved: outputs/plots/Graph_4.png\n")
+ggsave(file.path(plot_dir, "Graph_4.png"),
+  p_forest + labs(title = NULL, subtitle = NULL),
+  width = 9, height = 5.5
+)
+cat("Saved: outputs/plots/Graph_4.png and Graph_4_with_titles.png\n")
 
 cat("\nDone. Primary results: read attacker_w4 (H1) and victim_w4 (H2) from M7.\n")
 
