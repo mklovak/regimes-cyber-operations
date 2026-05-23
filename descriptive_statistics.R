@@ -10,6 +10,41 @@ library(dplyr)
 library(ggplot2)
 library(moments) # for skewness()
 
+# --- Thesis-ready figures: Cambria 13pt, line height 1.5 -----------------------
+# Cambria ships inside the Microsoft Word app bundle on macOS; register the
+# files with showtext so the Graph_*.png exports embed Cambria. Other plots in
+# this script inherit the same style — harmless for exploratory output. If
+# Cambria is not present (e.g. running on another machine), fall back to the
+# default sans family so the script still runs end to end.
+cambria_dir <- "/Applications/Microsoft Word.app/Contents/Resources/DFonts"
+if (file.exists(file.path(cambria_dir, "Cambria.ttc"))) {
+  library(showtext)
+  sysfonts::font_add(
+    "Cambria",
+    regular    = file.path(cambria_dir, "Cambria.ttc"),
+    bold       = file.path(cambria_dir, "Cambriab.ttf"),
+    italic     = file.path(cambria_dir, "Cambriai.ttf"),
+    bolditalic = file.path(cambria_dir, "Cambriaz.ttf")
+  )
+  showtext::showtext_auto()
+  showtext::showtext_opts(dpi = 300)
+  thesis_family <- "Cambria"
+} else {
+  thesis_family <- "sans"
+}
+
+# Theme used for the four thesis figures (Graph_1..Graph_4). Other exploratory
+# plots in this script keep their original theme_minimal() style.
+thesis_theme <- theme_minimal(base_family = thesis_family, base_size = 13) +
+  theme(
+    text          = element_text(family = thesis_family, size = 13, lineheight = 1.5),
+    axis.text     = element_text(size = 13),
+    axis.title    = element_text(size = 13),
+    plot.subtitle = element_text(size = 13),
+    legend.text   = element_text(size = 13),
+    legend.title  = element_text(size = 13)
+  )
+
 # setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 ##################### Load datasets ############################################
@@ -375,14 +410,13 @@ p <- ggplot() +
     ), name = NULL
   ) +
   labs(
-    title = "W4 Distribution: All Countries vs Attackers vs Victims (df_2020)",
     subtitle = paste0(
       "Distribution of country-level mean Winning Coalition Index. All countries (n=",
       nrow(df_w4_all), "), attackers (n=", nrow(df_w4_attackers), "), victims (n=", nrow(df_w4_victims), ")."
     ),
     x = "W4 Score", y = "Density"
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(legend.position = "bottom")
 print(p)
 ggsave(file.path(plot_dir, "Graph_1.png"), p, width = 10, height = 6)
@@ -1347,11 +1381,10 @@ p <- df_2020 %>%
   geom_col(fill = "#1D3557") +
   geom_text(aes(label = total), hjust = -0.3, size = 3.3) +
   labs(
-    title = "Most Active Directed Dyads (Panel A, 2007-2020)",
     subtitle = "Total cyber operations by attacker → victim pair.",
     x = "Total cyber operations", y = NULL
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(panel.grid.major.y = element_blank()) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.12)))
 print(p)
@@ -1369,7 +1402,6 @@ p <- ggplot(count_dist, aes(x = factor(Incident_Count), y = dyad_years)) +
   geom_text(aes(label = dyad_years), vjust = -0.4, size = 3) +
   scale_y_log10(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Distribution of Cyber Operations per Directed Dyad-Year (Panel A)",
     subtitle = paste0(
       round(mean(df_2020$Incident_Count == 0) * 100, 2),
       "% of directed dyad-years record zero operations — the excess-zero\n",
@@ -1378,7 +1410,7 @@ p <- ggplot(count_dist, aes(x = factor(Incident_Count), y = dyad_years)) +
     x = "Cyber operations in a dyad-year",
     y = "Number of dyad-years (log scale)"
   ) +
-  theme_minimal()
+  thesis_theme
 print(p)
 ggsave(file.path(plot_dir, "Graph_3.png"), p, width = 9, height = 5.5)
 
