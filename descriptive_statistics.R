@@ -33,8 +33,9 @@ if (file.exists(file.path(cambria_dir, "Cambria.ttc"))) {
   thesis_family <- "sans"
 }
 
-# Theme used for the four thesis figures (Graph_1..Graph_4). Other exploratory
-# plots in this script keep their original theme_minimal() style.
+# Default theme used for every plot in this script. Graph_1..Graph_4 additionally
+# save a "_with_titles" variant for general use; the thesis versions (no title
+# or subtitle) are the bare Graph_N.png files.
 thesis_theme <- theme_minimal(base_family = thesis_family, base_size = 13) +
   theme(
     text          = element_text(family = thesis_family, size = 13, lineheight = 1.5),
@@ -143,7 +144,7 @@ p <- df_2020 %>%
     x = "Year", y = "Number of Incidents"
   ) +
   scale_x_continuous(breaks = 2007:2020) +
-  theme_minimal()
+  thesis_theme
 print(p)
 ggsave(file.path(plot_dir, "1_incidents_per_year.png"), p, width = 10, height = 6)
 
@@ -161,7 +162,7 @@ p <- df_2020 %>%
     title = "Top 5 Attacker Countries (2007-2020)",
     x = "Total Incidents", y = NULL
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(panel.grid.major.y = element_blank()) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15)))
 print(p)
@@ -181,7 +182,7 @@ p <- df_2020 %>%
     title = "Top 5 Victim Countries (2007-2020)",
     x = "Total Incidents", y = NULL
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(panel.grid.major.y = element_blank()) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15)))
 print(p)
@@ -219,7 +220,7 @@ p <- ggplot(df_trend_compare, aes(x = Year, y = total, color = panel)) +
     "df_2014 (clean, primary)" = "#2A9D8F"
   )) +
   scale_x_continuous(breaks = 2007:2020) +
-  theme_minimal() +
+  thesis_theme +
   theme(legend.position = "bottom")
 print(p)
 ggsave(file.path(plot_dir, "10_panel_comparison_trend.png"), p, width = 10, height = 6)
@@ -239,7 +240,7 @@ p <- df_2014 %>%
     title = "Top 5 Attacker Countries (2007-2014, Clean Panel)",
     x = "Total Incidents", y = NULL
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(panel.grid.major.y = element_blank()) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15)))
 print(p)
@@ -260,7 +261,7 @@ p <- df_2014 %>%
     title = "Top 5 Victim Countries (2007-2014, Clean Panel)",
     x = "Total Incidents", y = NULL
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(panel.grid.major.y = element_blank()) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15)))
 print(p)
@@ -410,6 +411,7 @@ p <- ggplot() +
     ), name = NULL
   ) +
   labs(
+    title = "W4 Distribution: All Countries vs Attackers vs Victims (df_2020)",
     subtitle = paste0(
       "Distribution of country-level mean Winning Coalition Index. All countries (n=",
       nrow(df_w4_all), "), attackers (n=", nrow(df_w4_attackers), "), victims (n=", nrow(df_w4_victims), ")."
@@ -419,7 +421,8 @@ p <- ggplot() +
   thesis_theme +
   theme(legend.position = "bottom")
 print(p)
-ggsave(file.path(plot_dir, "Graph_1.png"), p, width = 10, height = 6)
+ggsave(file.path(plot_dir, "Graph_1_with_titles.png"), p, width = 10, height = 6)
+ggsave(file.path(plot_dir, "Graph_1.png"), p + labs(title = NULL, subtitle = NULL), width = 10, height = 6)
 
 # Plot 2 (supplementary): Overlapping histograms — % within each group
 df_w4_combined <- bind_rows(
@@ -455,7 +458,7 @@ p <- ggplot(df_w4_binned, aes(x = bin_mid, y = pct, fill = group)) +
     subtitle = "Each group's bars sum to 100% independently.",
     x = "W4 Score", y = "% of Observations (within group)"
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(legend.position = "bottom")
 print(p)
 ggsave(file.path(plot_dir, "5_w4_histogram_2020.png"), p, width = 10, height = 6)
@@ -569,7 +572,7 @@ p <- ggplot() +
     ),
     x = "ln(GDP per capita)", y = "Density"
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(legend.position = "bottom")
 print(p)
 ggsave(file.path(plot_dir, "6_gdp_pc_density_2020.png"), p, width = 10, height = 6)
@@ -611,7 +614,7 @@ p <- ggplot(df_gdp_binned, aes(x = bin_mid, y = pct, fill = group)) +
     subtitle = "Each group's bars sum to 100% independently.",
     x = "ln(GDP per capita)", y = "% of Observations (within group)"
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(legend.position = "bottom")
 print(p)
 ggsave(file.path(plot_dir, "7_gdp_pc_histogram_2020.png"), p, width = 10, height = 6)
@@ -755,7 +758,7 @@ p <- ggplot() +
     ),
     x = "CINC Score", y = "Density"
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(legend.position = "bottom")
 print(p)
 ggsave(file.path(plot_dir, "8_cinc_density_raw_2016.png"), p, width = 10, height = 6)
@@ -798,7 +801,7 @@ p <- ggplot() +
     ),
     x = "ln(CINC + 0.0001)", y = "Density"
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(legend.position = "bottom")
 print(p)
 ggsave(file.path(plot_dir, "9_cinc_density_log_2016.png"), p, width = 10, height = 6)
@@ -1186,7 +1189,7 @@ p <- ggplot() +
     ),
     x = "W4 Score", y = "Density"
   ) +
-  theme_minimal() +
+  thesis_theme +
   theme(legend.position = "bottom")
 print(p)
 ggsave(file.path(plot_dir, "13_w4_density_clean.png"), p, width = 10, height = 6)
@@ -1381,6 +1384,7 @@ p <- df_2020 %>%
   geom_col(fill = "#1D3557") +
   geom_text(aes(label = total), hjust = -0.3, size = 3.3) +
   labs(
+    title = "Most Active Directed Dyads (Panel A, 2007-2020)",
     subtitle = "Total cyber operations by attacker → victim pair.",
     x = "Total cyber operations", y = NULL
   ) +
@@ -1388,7 +1392,8 @@ p <- df_2020 %>%
   theme(panel.grid.major.y = element_blank()) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.12)))
 print(p)
-ggsave(file.path(plot_dir, "Graph_2.png"), p, width = 9, height = 5.5)
+ggsave(file.path(plot_dir, "Graph_2_with_titles.png"), p, width = 9, height = 5.5)
+ggsave(file.path(plot_dir, "Graph_2.png"), p + labs(title = NULL, subtitle = NULL), width = 9, height = 5.5)
 
 # --- Graph 3: Distribution of cyber operations per directed dyad-year ---
 # Goes with the Methods subsection in the thesis: visualises the extreme
@@ -1402,6 +1407,7 @@ p <- ggplot(count_dist, aes(x = factor(Incident_Count), y = dyad_years)) +
   geom_text(aes(label = dyad_years), vjust = -0.4, size = 3) +
   scale_y_log10(expand = expansion(mult = c(0, 0.15))) +
   labs(
+    title = "Distribution of Cyber Operations per Directed Dyad-Year (Panel A)",
     subtitle = paste0(
       round(mean(df_2020$Incident_Count == 0) * 100, 2),
       "% of directed dyad-years record zero operations — the excess-zero\n",
@@ -1412,7 +1418,8 @@ p <- ggplot(count_dist, aes(x = factor(Incident_Count), y = dyad_years)) +
   ) +
   thesis_theme
 print(p)
-ggsave(file.path(plot_dir, "Graph_3.png"), p, width = 9, height = 5.5)
+ggsave(file.path(plot_dir, "Graph_3_with_titles.png"), p, width = 9, height = 5.5)
+ggsave(file.path(plot_dir, "Graph_3.png"), p + labs(title = NULL, subtitle = NULL), width = 9, height = 5.5)
 
 
 cat("\nPlots saved to:", plot_dir, "\n")
