@@ -13,14 +13,39 @@ robustness.R             →  robustness checks R1–R6 (MID-any, top-3 exclusio
                             CFR alternative dataset); diagnostics D4–D5
 ```
 
-> **Model families**: `M1–M7` are the primary models (DCID dyadic). `D1–D5` are
-> diagnostics (not robustness checks): D1–D2 probe the H2 extensive margin and
-> D3 the M7 stage-placement choice (in `models.R`); D4–D5 are supplementary
-> top-3-exclusion diagnostics (in `robustness.R`). `R1–R6` are the robustness
-> checks — external challenges to the finding (MID-any, top-3 exclusion, CFR
-> dataset). The Poisson vs NB likelihood-ratio test lives in
-> `descriptive_statistics.R`. The CFR analysis is integrated into `robustness.R`
-> as R3–R6.
+### Model families
+
+There are three families of models in this project: **M** (primary), **D**
+(diagnostics) and **R** (robustness). Diagnostics probe a specification or
+support an interpretation in the text and are kept in the code only — they
+are not reported in the thesis. Robustness checks confront the finding with
+external data, samples, or dataset and are reported in the thesis appendix.
+
+- **M1–M7** — primary models on the DCID dyadic panels (`models.R`). See
+  thesis Table 4 for specifications and Table 5 for results.
+
+- **D1–D5** — diagnostics, not reported in the thesis.
+  - **D1, D2** — H2 extensive-margin diagnostics: logit on `has_attack_clean`
+    with CINC-only (D1) and GDP-only (D2) controls. Defined in `models.R`.
+  - **D3** — M7 stage-placement diagnostic: ZINB with W4 added to the
+    inflation stage as well as the count stage. Defined in `models.R`.
+  - **D4, D5** — supplementary top-3-exclusion diagnostics: a ZINB version
+    of R2 on DCID Panel C (D4) and the CFR analogue of R2 on both CFR
+    panels (D5). Defined in `robustness.R`.
+
+- **R1–R6** — robustness checks, reported in thesis Tables 6, 7 and 8.
+  All defined in `robustness.R`.
+  - **R1** — kinetic-conflict sensitivity: NB with MID at any hostility
+    level (≥ 1) added to M2 (Panel B).
+  - **R2** — exclusion of the three dominant attackers (China, Russia,
+    Iran) from Panel C, NB estimator.
+  - **R3–R6** — CFR alternative dataset (Council on Foreign Relations
+    Cyber Operations Tracker). Monadic panel, so they test H1 only:
+    R3 mirrors M1, R4 mirrors M2, R5 mirrors M3/M6, R6 mirrors M7 and is
+    the primary CFR specification.
+
+The Poisson-vs-NB likelihood-ratio test (estimator justification) lives in
+`descriptive_statistics.R`.
 
 ## Project Structure
 
